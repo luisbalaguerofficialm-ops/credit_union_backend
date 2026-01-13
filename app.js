@@ -142,9 +142,9 @@ const port = process.env.PORT || 5000;
 const start = async () => {
   try {
     await mongoose.connect(process.env.MONGO_URL);
-    console.log("✅ Database connected");
+    console.log("Database connected");
 
-    server.listen(port, () => {
+    const server = app.listen(port, () => {
       console.log(`🚀 Server running on port ${port}`);
       console.log("📡 Socket.IO active");
     });
