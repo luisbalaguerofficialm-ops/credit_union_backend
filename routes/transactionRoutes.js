@@ -6,6 +6,7 @@ const router = express.Router();
 // ===============================
 const { protect } = require("../middlewares/authMiddleware");
 const verifyTransactionPin = require("../middlewares/verifyTransactionPin");
+const requireVerifiedKyc = require("../middlewares/requireVerifiedKyc");
 
 // ===============================
 // CONTROLLER IMPORTS
@@ -28,20 +29,21 @@ const {
 // Filtered transactions (STATIC)
 router.get("/filter", protect, getFiltered);
 
-// All transactions for user
-router.get("/", protect, getTransactions);
-
 // Export
 router.get("/export/csv", protect, exportTransactionsCSV);
 router.get("/export/pdf", protect, exportTransactionsPDF);
 
+// All transactions for user
+router.get("/", protect, getTransactions);
+
 // ===============================
-// CREATE TRANSACTION (PIN REQUIRED)
+// CREATE TRANSACTION (PIN + KYC REQUIRED)
 // ===============================
 router.post(
   "/",
   protect,
-  verifyTransactionPin, //  PIN verification here
+  requireVerifiedKyc, // 🔒 BLOCK IF KYC NOT VERIFIED
+  verifyTransactionPin,
   createTransaction
 );
 

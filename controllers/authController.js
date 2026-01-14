@@ -28,23 +28,47 @@ const sanitizeUser = (user) => {
 ===================================================== */
 exports.registerUser = async (req, res) => {
   try {
-    const { email, username, password, confirmPassword, phone } = req.body;
+    const {
+      firstName,
+      lastName,
+      email,
+      username,
+      phone,
+      accountType,
+      password,
+      confirmPassword,
+    } = req.body;
 
     // -----------------------------
     // Basic validation
     // -----------------------------
-    if (!email || !username || !password || !confirmPassword) {
+    if (
+      !firstName ||
+      !lastName ||
+      !email ||
+      !username ||
+      !password ||
+      !confirmPassword
+    ) {
       return res.status(400).json({
         message: "All required fields must be provided",
       });
     }
 
     if (password !== confirmPassword) {
-      return res.status(400).json({ message: "Passwords do not match" });
+      return res.status(400).json({
+        message: "Passwords do not match",
+      });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({
+        message: "Password must be at least 6 characters",
+      });
     }
 
     // -----------------------------
-    // Check for duplicates
+    // Check duplicates
     // -----------------------------
     if (await User.findOne({ email: email.toLowerCase() })) {
       return res.status(400).json({ message: "Email already registered" });
@@ -60,9 +84,9 @@ exports.registerUser = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // -----------------------------
-    // Generate and hash transaction PIN
+    // Generate transaction PIN
     // -----------------------------
-    const transactionPin = generatePin(); // e.g., 4-digit random
+    const transactionPin = generatePin();
     const pinHash = await bcrypt.hash(transactionPin, 10);
 
     // -----------------------------
@@ -71,74 +95,69 @@ exports.registerUser = async (req, res) => {
     const accountNumber = await generateAccountNumber();
 
     // -----------------------------
-    // Create user
+    // Create user (MINIMAL DATA)
     // -----------------------------
     const user = await User.create({
+      firstName,
+      lastName,
       email: email.toLowerCase(),
       username,
       phone,
       password: hashedPassword,
-      pinHash,
+      accountType,
       accountNumber,
+      pinHash,
       balance: 0,
-      forcePinChange: true, // force user to change PIN after first login
+      forcePinChange: true,
     });
 
     const token = generateToken(user._id);
 
     // -----------------------------
-    // Send Email
+    // Send Welcome Email
     // -----------------------------
     await sendEmail({
       to: user.email,
-      subject: "Welcome to CREDIT UNION BANK",
+      subject: "Welcome to Credit Union Bank",
       html: `
-        <div style="max-width:600px;margin:0 auto;font-family:Arial,sans-serif;color:#111;">
-          
-          <div style="text-align:center;margin-bottom:20px;">
+        <div style="max-width:600px;margin:auto;font-family:Arial;">
+          <div style="text-align:center;">
             <img
               src="https://res.cloudinary.com/dvthnscx7/image/upload/v1768231460/images_p4tgmy.png"
-              alt="Credit Union Bank"
               width="160"
-              style="display:block;margin:0 auto;"
             />
           </div>
 
-          <h2 style="text-align:center;">Welcome, ${username} 🎉</h2>
+          <h2>Welcome, ${firstName} 🎉</h2>
 
-          <p>Your account has been created successfully.</p>
+          <p>Your account has been successfully created.</p>
 
           <p><b>Account Number:</b> ${accountNumber}</p>
-          <p><b>Transaction PIN:</b> ${transactionPin}</p>
+          <p><b>Temporary Transaction PIN:</b> ${transactionPin}</p>
 
-          <p style="margin-top:16px;">
-            You can change your PIN after login.
-          </p>
+          <p>Please login and change your PIN immediately.</p>
 
-          <hr style="margin:24px 0;border:none;border-top:1px solid #e5e7eb;" />
-
-          <p style="font-size:12px;color:#555;text-align:center;">
-            © ${new Date().getFullYear()} Credit Union Bank. All rights reserved.
-          </p>
+          <hr />
+          <small>© ${new Date().getFullYear()} Credit Union Bank</small>
         </div>
       `,
     });
 
     // -----------------------------
-    // Send SMS
+    // Send SMS (optional)
     // -----------------------------
     if (phone) {
       await sendSMS({
         to: phone,
-        message: `Welcome ${username} to CREDIT UNION BANK.
+        message: `Welcome ${firstName}!
 Account Number: ${accountNumber}
 Transaction PIN: ${transactionPin}
-Please login to change your PIN.`,
+Login to change your PIN.`,
       });
     }
 
     // -----------------------------
-    // Respond
+    // Response
     // -----------------------------
     res.status(201).json({
       success: true,
@@ -152,7 +171,7 @@ Please login to change your PIN.`,
   }
 };
 
-// // =============================================
+
 //    LOGIN (PASSWORD)
 // ===================================================== */
 exports.loginUser = async (req, res) => {

@@ -24,6 +24,12 @@ const UserSchema = new mongoose.Schema(
     zip: { type: String },
     streetAddress: { type: String },
 
+    kycStatus: {
+      type: String,
+      enum: ["not_submitted", "pending", "approved", "rejected"],
+      default: "not_submitted",
+    },
+
     // -----------------------------
     // Financial Info
     // -----------------------------

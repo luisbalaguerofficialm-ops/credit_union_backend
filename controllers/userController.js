@@ -114,3 +114,42 @@ exports.logoutAllOtherSessions = async (req, res) => {
     message: "Other sessions logged out",
   });
 };
+
+exports.completeProfile = async (req, res) => {
+  try {
+    const { streetAddress, city, state, zip, annualIncome, occupation, ssn } =
+      req.body;
+
+    if (!streetAddress || !city || !state || !annualIncome || !occupation) {
+      return res.status(400).json({
+        message: "All required fields must be provided",
+      });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      {
+        streetAddress,
+        city,
+        state,
+        zip,
+        annualIncome,
+        occupation,
+        ssn,
+      },
+      { new: true }
+    );
+
+    res.json({
+      success: true,
+      message: "Profile completed successfully",
+      user,
+    });
+  } catch (err) {
+    console.error("Complete Profile Error:", err);
+    res.status(500).json({
+      success: false,
+      message: "Profile update failed",
+    });
+  }
+};

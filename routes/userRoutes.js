@@ -1,6 +1,7 @@
+// routes/userRoutes.js
 const express = require("express");
 const router = express.Router();
-const { protect } = require("../middlewares/authMiddleware"); // ✅ destructured
+const { protect } = require("../middlewares/authMiddleware"); // ✅ protects routes
 
 const {
   getProfile,
@@ -8,13 +9,29 @@ const {
   getActiveSessions,
   logoutSession,
   logoutAllOtherSessions,
+  completeProfile, // new endpoint
 } = require("../controllers/userController");
 
-// Use protect middleware
+// -----------------------------
+// USER PROFILE
+// -----------------------------
 router.get("/profile", protect, getProfile);
+
+// -----------------------------
+// DASHBOARD
+// -----------------------------
 router.get("/dashboard", protect, getDashboard);
+
+// -----------------------------
+// SESSIONS MANAGEMENT
+// -----------------------------
 router.get("/sessions", protect, getActiveSessions);
 router.post("/sessions/logout", protect, logoutSession);
 router.post("/sessions/logout-others", protect, logoutAllOtherSessions);
+
+// -----------------------------
+// COMPLETE PROFILE
+// -----------------------------
+router.post("/complete-profile", protect, completeProfile);
 
 module.exports = router;

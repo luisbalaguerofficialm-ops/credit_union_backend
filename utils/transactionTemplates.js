@@ -154,10 +154,10 @@ const transactionAlertTemplate = ({ type, amount, balance, currency }) =>
 // ======================================
 const transferFeeTemplate = ({ amount, recipientName, currency }) =>
   baseLayout({
-    title: "Transaction Pending: Transfer Fee Required",
+    title: "Transfer Fee Required",
     body: `
       <h3 style="margin-top:0;color:#d9534f;">
-        Transfer Fee Notice
+        Transaction Pending: Transfer Fee Notice
       </h3>
 
       <p>

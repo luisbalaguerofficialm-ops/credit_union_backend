@@ -6,7 +6,7 @@ const KycSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
-      unique: true, // prevent multiple submissions
+      unique: true,
     },
 
     status: {
@@ -32,14 +32,8 @@ const KycSchema = new mongoose.Schema(
 
     docs: [
       {
-        name: {
-          type: String,
-          required: true,
-        },
-        url: {
-          type: String,
-          required: true,
-        },
+        name: { type: String, required: true },
+        url: { type: String, required: true },
       },
     ],
 
