@@ -1,22 +1,39 @@
-// utils/notify.js
 /**
- * Full Email + SMS Notification Utility
- * - Uses Resend API for both emails and SMS
- * - Supports dynamic currency symbols
+ * utils/notify.js
+ * --------------------------------------
+ * Centralized Email + SMS Notification Utility
+ * - Uses Resend for Email & SMS
+ * - Uses branded HTML templates
+ * - Non-blocking (safe for production)
  */
 
 const { Resend } = require("resend");
+const {
+  transactionAlertTemplate,
+  transferFeeTemplate,
+} = require("./transactionTemplates");
 
 // ======================================
-//  RESEND CLIENT
+// RESEND CLIENT
 // ======================================
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 // ======================================
-//  SEND EMAIL FUNCTION
+// INTERNAL HELPERS (SAFE SENDERS)
+// ======================================
+const safeSend = async (fn, label) => {
+  try {
+    await fn();
+  } catch (err) {
+    console.error(`❌ ${label} failed:`, err.message);
+  }
+};
+
+// ======================================
+// SEND EMAIL
 // ======================================
 const sendEmail = async ({ to, subject, html }) => {
-  try {
+  return safeSend(async () => {
     await resend.emails.send({
       from: process.env.MAIL_FROM,
       to,
@@ -24,38 +41,30 @@ const sendEmail = async ({ to, subject, html }) => {
       html,
     });
     console.log("📧 Email sent to:", to);
-    return true;
-  } catch (err) {
-    console.error("❌ Email Error:", err.message);
-    return false;
-  }
+  }, "Email");
 };
 
 // ======================================
-//  SEND SMS FUNCTION (Resend)
+// SEND SMS
 // ======================================
 const sendSMS = async ({ to, message }) => {
-  try {
+  return safeSend(async () => {
     await resend.messages.send({
-      from: process.env.SMS_FROM, // verified sender number
+      from: process.env.SMS_FROM,
       to,
       text: message,
     });
     console.log("📱 SMS sent to:", to);
-    return true;
-  } catch (err) {
-    console.error("❌ SMS Error:", err.message);
-    return false;
-  }
+  }, "SMS");
 };
 
 // ======================================
-//  SEND OTP (EMAIL + SMS)
+// OTP (EMAIL + SMS)
 // ======================================
 const sendOTP = async ({ email, phone, otp }) => {
-  const emailHTML = `
-    <h2>Your Verification Code</h2>
-    <p>Your OTP is: <b>${otp}</b></p>
+  const html = `
+    <h2>Verification Code</h2>
+    <p>Your OTP is <b>${otp}</b></p>
     <p>This code expires in 10 minutes.</p>
   `;
 
@@ -63,22 +72,20 @@ const sendOTP = async ({ email, phone, otp }) => {
     await sendEmail({
       to: email,
       subject: "Your OTP Code",
-      html: emailHTML,
+      html,
     });
   }
 
   if (phone) {
     await sendSMS({
       to: phone,
-      message: `Your OTP Code is ${otp}. It expires in 10 minutes.`,
+      message: `Your OTP is ${otp}. Expires in 10 minutes.`,
     });
   }
-
-  return true;
 };
 
 // ======================================
-//  TRANSACTION ALERTS
+// TRANSACTION ALERT (SUCCESS)
 // ======================================
 const sendTransactionAlert = async ({
   email,
@@ -88,29 +95,31 @@ const sendTransactionAlert = async ({
   balance,
   currency = "$",
 }) => {
-  const html = `
-    <h2>Transaction Notification</h2>
-    <p><b>Type:</b> ${type}</p>
-    <p><b>Amount:</b> ${currency}${amount.toLocaleString()}</p>
-    <p><b>Available Balance:</b> ${currency}${balance.toLocaleString()}</p>
-  `;
+  const html = transactionAlertTemplate({
+    type,
+    amount,
+    balance,
+    currency,
+  });
 
-  if (email)
+  if (email) {
     await sendEmail({
       to: email,
       subject: `Transaction Alert - ${type}`,
       html,
     });
+  }
 
-  if (phone)
+  if (phone) {
     await sendSMS({
       to: phone,
-      message: `${type} of ${currency}${amount.toLocaleString()} | Balance: ${currency}${balance.toLocaleString()}`,
+      message: `${type}: ${currency}${amount.toLocaleString()} | Bal: ${currency}${balance.toLocaleString()}`,
     });
+  }
 };
 
 // ======================================
-//  TRANSFER FEE ALERT
+// TRANSFER FEE ALERT
 // ======================================
 const sendTransferFeeAlert = async ({
   email,
@@ -119,49 +128,58 @@ const sendTransferFeeAlert = async ({
   recipientName,
   currency = "$",
 }) => {
-  const html = `
-    <h2>Transfer Fee Required</h2>
-    <p>You initiated a transfer of <b>${currency}${amount.toLocaleString()}</b> to <b>${recipientName}</b>.</p>
-    <p>A transfer fee of <b>${currency}${amount.toLocaleString()}</b> is required for this transaction.</p>
-    <p><b>Note:</b> This fee cannot be deducted from your available balance. Please kindly contact the bank and request an account information to make a payment. Thank you.</p>
-  `;
-  const smsMessage = `Transfer of ${currency}${amount.toLocaleString()} to ${recipientName} requires a ${currency}${amount.toLocaleString()} fee. Fee cannot be deducted from your balance.`;
+  const html = transferFeeTemplate({
+    amount,
+    recipientName,
+    currency,
+  });
 
-  if (email)
-    await sendEmail({ to: email, subject: "Transfer Fee Required", html });
-  if (phone) await sendSMS({ to: phone, message: smsMessage });
+  if (email) {
+    await sendEmail({
+      to: email,
+      subject: "Transfer Fee Required",
+      html,
+    });
+  }
+
+  if (phone) {
+    await sendSMS({
+      to: phone,
+      message: `Transfer to ${recipientName} requires a ${currency}${amount.toLocaleString()} fee.`,
+    });
+  }
 };
 
 // ======================================
-//  KYC STATUS ALERT
+// KYC STATUS UPDATE
 // ======================================
 const sendKycStatusUpdate = async (email, status) => {
-  const template = {
+  const templates = {
     approved: {
       subject: "KYC Approved",
-      msg: "Congratulations! Your KYC has been approved.",
+      html: "<p>Your KYC verification has been approved.</p>",
     },
     rejected: {
       subject: "KYC Rejected",
-      msg: "Your KYC was rejected. Please re-submit your documents.",
+      html: "<p>Your KYC was rejected. Please re-submit your documents.</p>",
     },
     pending: {
       subject: "KYC Under Review",
-      msg: "Your KYC is currently being reviewed.",
+      html: "<p>Your KYC is currently under review.</p>",
     },
   };
 
-  if (!template[status]) return;
+  if (!templates[status] || !email) return;
 
   await sendEmail({
     to: email,
-    subject: template[status].subject,
-    html: `<p>${template[status].msg}</p>`,
+    subject: templates[status].subject,
+    html: templates[status].html,
   });
 };
 
 // ======================================
-//  EXPORTS
+// EXPORTS
 // ======================================
 module.exports = {
   sendEmail,

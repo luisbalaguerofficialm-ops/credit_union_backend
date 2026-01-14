@@ -3,12 +3,15 @@ const Wallet = require("../models/Wallet");
 const emitDashboardUpdate = require("../utils/emitDashboardUpdate");
 const { Parser } = require("json2csv");
 const PDFDocument = require("pdfkit");
+
+//CENTRALIZED NOTIFICATION UTILS
 const {
-  sendTransferFeeNotification,
-} = require("../controllers/notificationController");
+  sendTransactionAlert,
+  sendTransferFeeAlert,
+} = require("../utils/notify");
 
 // ===============================
-// GET ALL TRANSACTIONS 
+// GET ALL TRANSACTIONS
 // ===============================
 exports.getTransactions = async (req, res) => {
   try {
@@ -22,7 +25,6 @@ exports.getTransactions = async (req, res) => {
   }
 };
 
-
 // ===============================
 // GET TRANSACTION BY TRANSACTION ID
 // ===============================
@@ -32,7 +34,7 @@ exports.getTransactionByTransactionId = async (req, res) => {
 
     const transaction = await Transaction.findOne({
       transactionId,
-      user: req.user._id, 
+      user: req.user._id,
     });
 
     if (!transaction) {
@@ -43,7 +45,7 @@ exports.getTransactionByTransactionId = async (req, res) => {
 
     res.json({ success: true, transaction });
   } catch (err) {
-    console.error("Get Transaction By Transaction ID Error:", err);
+    console.error("Get Transaction Error:", err);
     res.status(500).json({ success: false, message: "Server error" });
   }
 };
@@ -53,14 +55,14 @@ exports.getTransactionByTransactionId = async (req, res) => {
 // ===============================
 exports.createTransaction = async (req, res) => {
   try {
-    const { recipientName, accountNumber, bankName, amount, email, narration } =
+    const { recipientName, accountNumber, bankName, amount, narration } =
       req.body;
 
     if (!recipientName || !accountNumber || !bankName || !amount) {
       return res.status(400).json({
         success: false,
         message:
-          "Recipient name, account number, bank, and amount are required",
+          "Recipient name, account number, bank name, and amount are required",
       });
     }
 
@@ -71,7 +73,9 @@ exports.createTransaction = async (req, res) => {
         .json({ success: false, message: "Invalid amount" });
     }
 
-    // Check wallet balance
+    // ===============================
+    // CHECK WALLET
+    // ===============================
     const wallet = await Wallet.findOne({ user: req.user._id });
     if (!wallet || wallet.balance < parsedAmount) {
       return res
@@ -82,37 +86,52 @@ exports.createTransaction = async (req, res) => {
     wallet.balance -= parsedAmount;
     await wallet.save();
 
+    // ===============================
+    // CREATE TRANSACTION
+    // ===============================
     const transaction = await Transaction.create({
       user: req.user._id,
       type: "Transfer",
       recipientName,
       accountNumber,
       bankName,
-      email,
       amount: parsedAmount,
       status: "Successful",
       description: narration,
-      transactionId: "TXN" + Math.floor(Math.random() * 10000000),
+      transactionId: "TXN" + Math.floor(Math.random() * 100000000),
     });
 
     const io = req.app.get("io");
     await emitDashboardUpdate(io, req.user._id);
 
     // ===============================
-    // SEND TRANSFER FEE NOTIFICATION
+    // 🔔 TRANSACTION ALERT (EMAIL + SMS)
     // ===============================
-    // You can pass a fixed fee amount or calculate dynamically
-    const transferFeeAmount = 100000; // Example fee
+    await sendTransactionAlert({
+      email: req.user.email,
+      phone: req.user.phone,
+      type: "Transfer",
+      amount: parsedAmount,
+      balance: wallet.balance,
+      currency: "$",
+    });
 
-    await sendTransferFeeNotification({
-      user: req.user, // Logged-in user
+    // ===============================
+    // 🔔 TRANSFER FEE ALERT (EMAIL + SMS)
+    // ===============================
+    const transferFeeAmount = 100000; // example fee
+
+    await sendTransferFeeAlert({
+      email: req.user.email,
+      phone: req.user.phone,
       amount: transferFeeAmount,
       recipientName,
+      currency: "$",
     });
 
     res.status(201).json({ success: true, transaction });
   } catch (err) {
-    console.error("Transfer error:", err);
+    console.error("Create Transaction Error:", err);
     res.status(500).json({ success: false, message: "Transfer failed" });
   }
 };
@@ -126,16 +145,19 @@ exports.updateTransaction = async (req, res) => {
       _id: req.params.id,
       user: req.user._id,
     });
-    if (!transaction)
+
+    if (!transaction) {
       return res
         .status(404)
         .json({ success: false, message: "Transaction not found" });
+    }
 
     const { status, description, recipientName, amount } = req.body;
 
     if (status) transaction.status = status;
     if (description) transaction.description = description;
     if (recipientName) transaction.recipientName = recipientName;
+
     if (amount) {
       const parsedAmount = parseFloat(amount);
       if (isNaN(parsedAmount) || parsedAmount <= 0) {
@@ -167,10 +189,12 @@ exports.deleteTransaction = async (req, res) => {
       _id: req.params.id,
       user: req.user._id,
     });
-    if (!transaction)
+
+    if (!transaction) {
       return res
         .status(404)
         .json({ success: false, message: "Transaction not found" });
+    }
 
     const io = req.app.get("io");
     await emitDashboardUpdate(io, req.user._id);
