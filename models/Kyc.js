@@ -1,12 +1,11 @@
 const mongoose = require("mongoose");
-
 const KycSchema = new mongoose.Schema(
   {
     user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
-      unique: true,
+      unique: true, // prevent multiple submissions
     },
 
     status: {
@@ -17,6 +16,7 @@ const KycSchema = new mongoose.Schema(
 
     idType: {
       type: String,
+      enum: ["passport", "drivers_license", "national_id"],
       required: true,
     },
 
@@ -32,14 +32,20 @@ const KycSchema = new mongoose.Schema(
 
     docs: [
       {
-        name: { type: String, required: true },
-        url: { type: String, required: true },
+        name: {
+          type: String,
+          required: true,
+        },
+        url: {
+          type: String,
+          required: true,
+        },
       },
     ],
 
     note: String,
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 module.exports = mongoose.model("Kyc", KycSchema);

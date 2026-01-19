@@ -2,26 +2,19 @@ const Kyc = require("../models/Kyc");
 const User = require("../models/User");
 const { uploadToCloudinary } = require("../utils/cloudinary");
 
-// -----------------------------
-// Submit KYC
-// -----------------------------
 exports.submitKyc = async (req, res) => {
   try {
-    const userId = req.user._id;
-
     // -----------------------------
     // Validate uploads
     // -----------------------------
-    if (
-      !req.files?.idDocument ||
-      !req.files?.idDocumentBack ||
-      !req.files?.selfie
-    ) {
+    if (!req.files?.idDocument || !req.files?.selfie) {
       return res.status(400).json({
         success: false,
-        message: "Front, back ID documents and selfie are required",
+        message: "ID document and selfie are required",
       });
     }
+
+    const userId = req.user._id;
 
     // -----------------------------
     // Prevent duplicate KYC
@@ -37,14 +30,8 @@ exports.submitKyc = async (req, res) => {
     // -----------------------------
     // Upload files
     // -----------------------------
-    const idDocFront = await uploadToCloudinary(
-      req.files.idDocument[0],
-      "kyc/id/front"
-    );
-    const idDocBack = await uploadToCloudinary(
-      req.files.idDocumentBack[0],
-      "kyc/id/back"
-    );
+    const idDoc = await uploadToCloudinary(req.files.idDocument[0], "kyc/id");
+
     const selfie = await uploadToCloudinary(req.files.selfie[0], "kyc/selfie");
 
     // -----------------------------
@@ -57,14 +44,13 @@ exports.submitKyc = async (req, res) => {
       country: req.body.country,
       status: "pending",
       docs: [
-        { name: "ID Document Front", url: idDocFront.secure_url },
-        { name: "ID Document Back", url: idDocBack.secure_url },
+        { name: "ID Document", url: idDoc.secure_url },
         { name: "Selfie", url: selfie.secure_url },
       ],
     });
 
     // -----------------------------
-    // Update user KYC status
+    // Sync user KYC status
     // -----------------------------
     await User.findByIdAndUpdate(userId, {
       kycStatus: "pending",
@@ -74,7 +60,6 @@ exports.submitKyc = async (req, res) => {
       success: true,
       message: "KYC submitted successfully",
       status: "pending",
-      kyc,
     });
   } catch (err) {
     console.error("KYC ERROR:", err);
@@ -85,20 +70,23 @@ exports.submitKyc = async (req, res) => {
   }
 };
 
-// -----------------------------
-// Get KYC for logged-in user
-// -----------------------------
 exports.getUserKyc = async (req, res) => {
   try {
     const kyc = await Kyc.findOne({ user: req.user._id });
 
+    if (!kyc) {
+      return res.json({
+        success: true,
+        status: "not_verified",
+      });
+    }
+
     res.json({
       success: true,
-      status: kyc ? kyc.status : "not_submitted", // enum: not_submitted | pending | verified | rejected
-      kyc: kyc || null,
+      status: kyc.status,
+      kyc,
     });
   } catch (err) {
-    console.error("Get KYC ERROR:", err);
     res.status(500).json({
       success: false,
       message: "Failed to fetch KYC",

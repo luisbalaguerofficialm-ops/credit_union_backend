@@ -96,7 +96,6 @@ const walletRoutes = require("./routes/walletRoutes");
 const chatRoutes = require("./routes/chatRoutes");
 const notifyRoutes = require("./routes/notifyRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
-
 const FundsRoutes = require("./routes/FundsRoutes");
 
 /* ==============================
