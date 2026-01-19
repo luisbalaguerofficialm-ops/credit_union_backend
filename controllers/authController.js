@@ -171,7 +171,6 @@ Login to change your PIN.`,
   }
 };
 
-
 //    LOGIN (PASSWORD)
 // ===================================================== */
 exports.loginUser = async (req, res) => {
@@ -198,6 +197,15 @@ exports.loginUser = async (req, res) => {
     console.error("Login Error:", err);
     res.status(500).json({ message: "Login failed" });
   }
+};
+
+
+// GET /api/auth/me
+exports.getMe = async (req, res) => {
+  res.status(200).json({
+    success: true,
+    user: req.user,
+  });
 };
 
 /* =====================================================
