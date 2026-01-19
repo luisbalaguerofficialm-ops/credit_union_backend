@@ -171,34 +171,83 @@ Login to change your PIN.`,
   }
 };
 
-//    LOGIN (PASSWORD)
-// ===================================================== */
+/// =====================================================
+// LOGIN (PASSWORD)
+// =====================================================
 exports.loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
 
+    /* =====================
+       VALIDATION
+    ===================== */
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "Email and password are required",
+      });
+    }
+
+    /* =====================
+       FIND USER
+    ===================== */
     const user = await User.findOne({ email: email.toLowerCase() });
-    if (!user) return res.status(404).json({ message: "User not found" });
 
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    /* =====================
+       CHECK PASSWORD
+    ===================== */
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch)
-      return res.status(400).json({ message: "Incorrect password" });
 
+    if (!isMatch) {
+      return res.status(400).json({
+        success: false,
+        message: "Incorrect password",
+      });
+    }
+
+    /* =====================
+       GENERATE TOKEN
+    ===================== */
     const token = generateToken(user._id);
 
-    res.json({
+    /* =====================
+       RESPONSE
+    ===================== */
+    res.status(200).json({
       success: true,
       message: "Login successful",
-      forcePinChange: user.forcePinChange,
       token,
-      user: sanitizeUser(user),
+
+      // 👇 Everything frontend needs (NO /auth/me required)
+      user: {
+        id: user._id,
+        email: user.email,
+        fullName: user.fullName,
+        role: user.role,
+
+        profileCompleted: user.profileCompleted, // true / false
+        kycStatus: user.kycStatus, // not_submitted | pending | approved | rejected
+
+        forcePinChange: user.forcePinChange,
+        createdAt: user.createdAt,
+      },
     });
   } catch (err) {
     console.error("Login Error:", err);
-    res.status(500).json({ message: "Login failed" });
+
+    res.status(500).json({
+      success: false,
+      message: "Login failed",
+    });
   }
 };
-
 
 // GET /api/auth/me
 exports.getMe = async (req, res) => {
