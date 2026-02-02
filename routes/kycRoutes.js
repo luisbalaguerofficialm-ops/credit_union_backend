@@ -11,6 +11,7 @@ router.post(
   protect,
   upload.fields([
     { name: "idDocument", maxCount: 1 },
+    { name: "idDocumentBack", maxCount: 1 },
     { name: "selfie", maxCount: 1 },
   ]),
   submitKyc,

@@ -13,7 +13,7 @@ exports.getDashboardData = async (req, res) => {
     // Fetch latest 10 transactions
     const transactions = await Transaction.find({ userId })
       .sort({ createdAt: -1 })
-      .limit(10);
+      .limit(15);
 
     res.json({
       balance: user.balance,

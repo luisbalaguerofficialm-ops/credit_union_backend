@@ -4,21 +4,35 @@ const { uploadToCloudinary } = require("../utils/cloudinary");
 
 exports.submitKyc = async (req, res) => {
   try {
-    // -----------------------------
-    // Validate uploads
-    // -----------------------------
-    if (!req.files?.idDocument || !req.files?.selfie) {
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized",
+      });
+    }
+
+    const { idType, idNumber, country } = req.body;
+
+    if (!idType || !idNumber || !country) {
       return res.status(400).json({
         success: false,
-        message: "ID document and selfie are required",
+        message: "idType, idNumber, and country are required",
+      });
+    }
+
+    if (
+      !req.files?.idDocument ||
+      !req.files?.idDocumentBack ||
+      !req.files?.selfie
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "ID document, ID document back, and selfie are required",
       });
     }
 
     const userId = req.user._id;
 
-    // -----------------------------
-    // Prevent duplicate KYC
-    // -----------------------------
     const existingKyc = await Kyc.findOne({ user: userId });
     if (existingKyc) {
       return res.status(400).json({
@@ -27,31 +41,26 @@ exports.submitKyc = async (req, res) => {
       });
     }
 
-    // -----------------------------
-    // Upload files
-    // -----------------------------
     const idDoc = await uploadToCloudinary(req.files.idDocument[0], "kyc/id");
-
+    const idDocBack = await uploadToCloudinary(
+      req.files.idDocumentBack[0],
+      "kyc/idback",
+    );
     const selfie = await uploadToCloudinary(req.files.selfie[0], "kyc/selfie");
 
-    // -----------------------------
-    // Create KYC record
-    // -----------------------------
-    const kyc = await Kyc.create({
+    await Kyc.create({
       user: userId,
-      idType: req.body.idType,
-      idNumber: req.body.idNumber,
-      country: req.body.country,
+      idType,
+      idNumber,
+      country,
       status: "pending",
       docs: [
         { name: "ID Document", url: idDoc.secure_url },
+        { name: "ID Document Back", url: idDocBack.secure_url },
         { name: "Selfie", url: selfie.secure_url },
       ],
     });
 
-    // -----------------------------
-    // Sync user KYC status
-    // -----------------------------
     await User.findByIdAndUpdate(userId, {
       kycStatus: "pending",
     });

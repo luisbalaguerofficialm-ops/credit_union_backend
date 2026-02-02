@@ -2,74 +2,165 @@ const mongoose = require("mongoose");
 
 const UserSchema = new mongoose.Schema(
   {
-    // -----------------------------
-    // Basic Info
-    // -----------------------------
-    firstName: { type: String },
-    lastName: { type: String },
-    gender: { type: String },
-    maritalStatus: { type: String },
-    username: { type: String, unique: true, required: true },
-    email: { type: String, unique: true, required: true },
-    phone: { type: String },
-    countryCode: { type: String },
-    password: { type: String, required: true },
+    // =============================
+    // BASIC INFO
+    // =============================
+    firstName: {
+      type: String,
+      required: true,
+      trim: true,
+    },
 
-    // -----------------------------
-    // Address Info
-    // -----------------------------
-    country: { type: String },
-    state: { type: String },
-    city: { type: String },
-    zip: { type: String },
-    streetAddress: { type: String },
+    lastName: {
+      type: String,
+      required: true,
+      trim: true,
+    },
 
+    username: {
+      type: String,
+      unique: true,
+      required: true,
+      lowercase: true,
+      trim: true,
+    },
+
+    email: {
+      type: String,
+      unique: true,
+      required: true,
+      lowercase: true,
+      trim: true,
+    },
+
+    password: {
+      type: String,
+      required: true,
+      select: true,
+    },
+
+    // =============================
+    // ACCOUNT INFO
+    // =============================
+    accountType: {
+      type: String,
+      enum: ["Savings", "Current", "Fixed Deposit"],
+      required: true,
+    },
+
+    accountNumber: {
+      type: Number,
+      unique: true,
+      index: true,
+    },
+
+    balance: {
+      type: Number,
+      default: 0,
+    },
+
+    currency: {
+      type: String,
+      default: "USD",
+    },
+
+    pinHash: {
+      type: String,
+      required: true,
+      select: false,
+    },
+
+    // =============================
+    // PERSONAL / ADDRESS INFO
+    // =============================
+    dateOfBirth: {
+      type: Date,
+    },
+
+    country: {
+      type: String,
+    },
+
+    state: {
+      type: String,
+    },
+
+    city: {
+      type: String,
+    },
+
+    streetAddress: {
+      type: String,
+    },
+
+    zip: {
+      type: String,
+      match: /^[0-9]{5,6}$/,
+    },
+
+    ssn: {
+      type: String,
+      select: false,
+      match: /^[0-9]{3}-[0-9]{2}-[0-9]{4}$/,
+    },
+
+    // =============================
+    // KYC STATUS
+    // =============================
     kycStatus: {
       type: String,
       enum: ["not_submitted", "pending", "approved", "rejected"],
       default: "not_submitted",
     },
 
-    // -----------------------------
-    // Financial Info
-    // -----------------------------
-    accountNumber: { type: String, unique: true, index: true },
-    pinHash: { type: String, required: true, select: false }, // transaction PIN hash
-    accountType: { type: String },
-    balance: { type: Number, default: 0 },
-    currency: { type: String },
-    annualIncome: { type: String },
-    occupation: { type: String },
-    companyName: { type: String },
-    ssn: { type: String },
+    // =============================
+    // OTP / VERIFICATION
+    // =============================
+    otpHash: {
+      type: String,
+      select: false,
+    },
 
-    // -----------------------------
-    // OTP / Verification
-    // -----------------------------
-    otpHash: { type: String, select: false },
-    otpExpiresAt: { type: Date, select: false },
-    otpPurpose: { type: String }, // login | password_reset | kyc | email_verify
+    otpExpiresAt: {
+      type: Date,
+      select: false,
+    },
 
-    // -----------------------------
-    // Notifications & Messages
-    // -----------------------------
+    otpPurpose: {
+      type: String,
+      enum: ["login", "password_reset", "kyc", "email_verify"],
+    },
+
+    // =============================
+    // NOTIFICATIONS & MESSAGES
+    // =============================
     notifications: [
       {
-        title: { type: String },
-        message: { type: String },
-        type: { type: String }, // Success, Warning, Info
-        date: { type: Date, default: Date.now },
+        title: String,
+        message: String,
+        type: {
+          type: String,
+          enum: ["Success", "Warning", "Info"],
+        },
+        date: {
+          type: Date,
+          default: Date.now,
+        },
       },
     ],
+
     messages: [
       {
-        sender: { type: String },
-        message: { type: String },
-        date: { type: Date, default: Date.now },
+        sender: String,
+        message: String,
+        date: {
+          type: Date,
+          default: Date.now,
+        },
       },
     ],
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 module.exports = mongoose.model("User", UserSchema);

@@ -135,7 +135,7 @@ exports.registerUser = async (req, res) => {
           <p><b>Account Number:</b> ${accountNumber}</p>
           <p><b>Temporary Transaction PIN:</b> ${transactionPin}</p>
 
-          <p>Please login and change your PIN immediately.</p>
+          <p>Please you can decide to change your pin .</p>
 
           <hr />
           <small>© ${new Date().getFullYear()} Credit Union Bank</small>
@@ -212,20 +212,15 @@ exports.loginUser = async (req, res) => {
       });
     }
 
-    /* =====================
-       GENERATE TOKEN
-    ===================== */
-    const token = generateToken(user._id);
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+      expiresIn: "7d",
+    });
 
-    /* =====================
-       RESPONSE
-    ===================== */
     res.status(200).json({
       success: true,
       message: "Login successful",
       token,
 
-      // 👇 Everything frontend needs (NO /auth/me required)
       user: {
         id: user._id,
         email: user.email,

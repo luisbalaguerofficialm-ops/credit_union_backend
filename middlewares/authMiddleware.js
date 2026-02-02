@@ -1,21 +1,12 @@
 // middlewares/authMiddleware.js
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
-const TokenBlacklist = require("../models/TokenBlacklist"); // <- add this
+const TokenBlacklist = require("../models/TokenBlacklist");
 
-// Protect middleware
 async function protect(req, res, next) {
-  // Allow public auth routes
-  if (
-    req.originalUrl.startsWith("/api/auth/register") ||
-    req.originalUrl.startsWith("/api/auth/login")
-  ) {
-    return next();
-  }
-
   const authHeader = req.headers.authorization;
 
-  if (!authHeader || !authHeader.startsWith("Bearer")) {
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return res.status(401).json({
       success: false,
       message: "Unauthorized",
@@ -25,35 +16,35 @@ async function protect(req, res, next) {
   const token = authHeader.split(" ")[1];
 
   try {
-    // ----------------------------
-    // Check if token is blacklisted
-    // ----------------------------
+    // Check blacklist
     const blacklisted = await TokenBlacklist.findOne({ token });
     if (blacklisted) {
       return res.status(401).json({
         success: false,
-        message: "Token has been invalidated (logged out)",
+        message: "Token has been invalidated",
       });
     }
 
-    // ----------------------------
-    // Verify JWT and get user
-    // ----------------------------
     const payload = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(payload.id).select("-password");
+
+    const user = await User.findById(payload.id).select("_id role email");
     if (!user) {
-      return res.status(401).json({ success: false, message: "Unauthorized" });
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized",
+      });
     }
 
     req.user = user;
+
     next();
   } catch (err) {
     console.error("Auth Middleware Error:", err);
-    return res.status(401).json({ success: false, message: "Invalid token" });
+    return res.status(401).json({
+      success: false,
+      message: "Invalid token",
+    });
   }
 }
 
-// 🔹 Export as object
-module.exports = {
-  protect,
-};
+module.exports = { protect };

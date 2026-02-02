@@ -7,9 +7,11 @@ const Session = require("../models/Session");
    GET USER PROFILE (NEW)
    GET /api/users/profile
 ================================ */
-exports.getProfile = async (req, res) => {
+exports.getUserProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id).select("-password");
+    const user = await User.findById(req.user._id).select(
+      "firstName lastName email accountNumber balance streetAddress city state zip ssn",
+    );
 
     if (!user) {
       return res.status(404).json({
@@ -20,10 +22,15 @@ exports.getProfile = async (req, res) => {
 
     res.json({
       success: true,
-      user,
+      user: {
+        fullName: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        accountNumber: user.accountNumber,
+        balance: user.balance,
+      },
     });
   } catch (err) {
-    console.error("Get Profile Error:", err);
+    console.error("PROFILE ERROR:", err);
     res.status(500).json({
       success: false,
       message: "Failed to fetch profile",
@@ -117,39 +124,73 @@ exports.logoutAllOtherSessions = async (req, res) => {
 
 exports.completeProfile = async (req, res) => {
   try {
-    const { streetAddress, city, state, zip, annualIncome, occupation, ssn } =
-      req.body;
+    const userId = req.user?._id;
 
-    if (!streetAddress || !city || !state || !annualIncome || !occupation) {
-      return res.status(400).json({
-        message: "All required fields must be provided",
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized",
       });
     }
 
-    const user = await User.findByIdAndUpdate(
-      req.user._id,
+    const {
+      firstName,
+      lastName,
+      email,
+      ssn,
+      zip,
+      streetAddress,
+      city,
+      state,
+      country,
+      dateOfBirth,
+    } = req.body;
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
       {
+        firstName,
+        lastName,
+        email,
+        ssn,
+        zip,
         streetAddress,
         city,
         state,
-        zip,
-        annualIncome,
-        occupation,
-        ssn,
+        country,
+        dateOfBirth,
       },
-      { new: true }
+      { new: true, runValidators: true },
     );
 
-    res.json({
+    if (!updatedUser) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    res.status(200).json({
       success: true,
       message: "Profile completed successfully",
-      user,
+      user: {
+        firstName: updatedUser.firstName,
+        lastName: updatedUser.lastName,
+        email: updatedUser.email,
+        ssn: updatedUser.ssn,
+        streetAddress: updatedUser.streetAddress,
+        city: updatedUser.city,
+        state: updatedUser.state,
+        zip: updatedUser.zip,
+        country: updatedUser.country,
+        dateOfBirth: updatedUser.dateOfBirth,
+      },
     });
-  } catch (err) {
-    console.error("Complete Profile Error:", err);
+  } catch (error) {
+    console.error("Complete Profile Error:", error);
     res.status(500).json({
       success: false,
-      message: "Profile update failed",
+      message: "Failed to complete profile",
     });
   }
 };

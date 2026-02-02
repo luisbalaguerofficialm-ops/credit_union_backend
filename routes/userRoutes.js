@@ -4,7 +4,7 @@ const router = express.Router();
 const { protect } = require("../middlewares/authMiddleware"); // ✅ protects routes
 
 const {
-  getProfile,
+  getUserProfile,
   getDashboard,
   getActiveSessions,
   logoutSession,
@@ -15,7 +15,7 @@ const {
 // -----------------------------
 // USER PROFILE
 // -----------------------------
-router.get("/profile", protect, getProfile);
+router.get("/profile", protect, getUserProfile);
 
 // -----------------------------
 // DASHBOARD
