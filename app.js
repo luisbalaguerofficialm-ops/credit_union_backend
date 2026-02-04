@@ -5,6 +5,8 @@ const mongoose = require("mongoose");
 const cors = require("cors");
 const http = require("http");
 const { Server } = require("socket.io");
+const cookieParser = require("cookie-parser");
+
 
 dotenv.config();
 
@@ -23,6 +25,7 @@ const io = new Server(server, {
 
 // Make io available in controllers
 app.set("io", io);
+app.use(cookieParser());
 
 /* ==============================
    SOCKET EVENTS
@@ -110,7 +113,10 @@ app.get("/", (req, res) => {
 ============================== */
 app.use("/api/auth", authRoutes);
 
+
 /* ==============================
+
+
    PROTECTED ROUTES
 ============================== */
 app.use("/api", updateSession, protect);
@@ -125,6 +131,7 @@ app.use("/api/wallet", walletRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api", FundsRoutes);
+
 
 /* ==============================
    404 HANDLER

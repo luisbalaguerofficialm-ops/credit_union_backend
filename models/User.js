@@ -48,6 +48,11 @@ const UserSchema = new mongoose.Schema(
       required: true,
     },
 
+    refreshToken: {
+      type: String,
+      default: null,
+    },
+
     accountNumber: {
       type: Number,
       unique: true,
@@ -81,28 +86,28 @@ const UserSchema = new mongoose.Schema(
       type: String,
     },
 
-    state: {
-      type: String,
-    },
+    // state: {
+    //   type: String,
+    // },
 
-    city: {
-      type: String,
-    },
+    // city: {
+    //   type: String,
+    // },
 
-    streetAddress: {
-      type: String,
-    },
+    // streetAddress: {
+    //   type: String,
+    // },
 
-    zip: {
-      type: String,
-      match: /^[0-9]{5,6}$/,
-    },
+    // zip: {
+    //   type: String,
+    //   match: /^[0-9]{5,6}$/,
+    // },
 
-    ssn: {
-      type: String,
-      select: false,
-      match: /^[0-9]{3}-[0-9]{2}-[0-9]{4}$/,
-    },
+    // ssn: {
+    //   type: String,
+    //   select: false,
+    //   match: /^[0-9]{3}-[0-9]{2}-[0-9]{4}$/,
+    // },
 
     // =============================
     // KYC STATUS

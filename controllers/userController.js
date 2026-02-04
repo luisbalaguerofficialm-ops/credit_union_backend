@@ -122,75 +122,75 @@ exports.logoutAllOtherSessions = async (req, res) => {
   });
 };
 
-exports.completeProfile = async (req, res) => {
-  try {
-    const userId = req.user?._id;
+// exports.completeProfile = async (req, res) => {
+//   try {
+//     const userId = req.user?._id;
 
-    if (!userId) {
-      return res.status(401).json({
-        success: false,
-        message: "Unauthorized",
-      });
-    }
+//     if (!userId) {
+//       return res.status(401).json({
+//         success: false,
+//         message: "Unauthorized",
+//       });
+//     }
 
-    const {
-      firstName,
-      lastName,
-      email,
-      ssn,
-      zip,
-      streetAddress,
-      city,
-      state,
-      country,
-      dateOfBirth,
-    } = req.body;
+//     const {
+//       firstName,
+//       lastName,
+//       email,
+//       ssn,
+//       zip,
+//       streetAddress,
+//       city,
+//       state,
+//       country,
+//       dateOfBirth,
+//     } = req.body;
 
-    const updatedUser = await User.findByIdAndUpdate(
-      userId,
-      {
-        firstName,
-        lastName,
-        email,
-        ssn,
-        zip,
-        streetAddress,
-        city,
-        state,
-        country,
-        dateOfBirth,
-      },
-      { new: true, runValidators: true },
-    );
+//     const updatedUser = await User.findByIdAndUpdate(
+//       userId,
+//       {
+//         firstName,
+//         lastName,
+//         email,
+//         ssn,
+//         zip,
+//         streetAddress,
+//         city,
+//         state,
+//         country,
+//         dateOfBirth,
+//       },
+//       { new: true, runValidators: true },
+//     );
 
-    if (!updatedUser) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found",
-      });
-    }
+//     if (!updatedUser) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "User not found",
+//       });
+//     }
 
-    res.status(200).json({
-      success: true,
-      message: "Profile completed successfully",
-      user: {
-        firstName: updatedUser.firstName,
-        lastName: updatedUser.lastName,
-        email: updatedUser.email,
-        ssn: updatedUser.ssn,
-        streetAddress: updatedUser.streetAddress,
-        city: updatedUser.city,
-        state: updatedUser.state,
-        zip: updatedUser.zip,
-        country: updatedUser.country,
-        dateOfBirth: updatedUser.dateOfBirth,
-      },
-    });
-  } catch (error) {
-    console.error("Complete Profile Error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to complete profile",
-    });
-  }
-};
+//     res.status(200).json({
+//       success: true,
+//       message: "Profile completed successfully",
+//       user: {
+//         firstName: updatedUser.firstName,
+//         lastName: updatedUser.lastName,
+//         email: updatedUser.email,
+//         ssn: updatedUser.ssn,
+//         streetAddress: updatedUser.streetAddress,
+//         city: updatedUser.city,
+//         state: updatedUser.state,
+//         zip: updatedUser.zip,
+//         country: updatedUser.country,
+//         dateOfBirth: updatedUser.dateOfBirth,
+//       },
+//     });
+//   } catch (error) {
+//     console.error("Complete Profile Error:", error);
+//     res.status(500).json({
+//       success: false,
+//       message: "Failed to complete profile",
+//     });
+//   }
+// };

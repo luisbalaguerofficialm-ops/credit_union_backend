@@ -212,14 +212,45 @@ exports.loginUser = async (req, res) => {
       });
     }
 
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
-      expiresIn: "7d",
+    /* =====================
+       TOKENS
+    ===================== */
+
+    // 🔐 Access token (short-lived)
+    const accessToken = jwt.sign(
+      { id: user._id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "20m" },
+    );
+
+    // 🔁 Refresh token (long-lived)
+    const refreshToken = jwt.sign(
+      { id: user._id },
+      process.env.JWT_REFRESH_SECRET,
+      { expiresIn: "10d" },
+    );
+
+    // Save refresh token in DB
+    user.refreshToken = refreshToken;
+    await user.save();
+
+    /* =====================
+       COOKIE (REFRESH TOKEN)
+    ===================== */
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 10 * 24 * 60 * 60 * 1000, // 10 days
     });
 
+    /* =====================
+       RESPONSE
+    ===================== */
     res.status(200).json({
       success: true,
       message: "Login successful",
-      token,
+      token: accessToken,
 
       user: {
         id: user._id,
@@ -227,8 +258,7 @@ exports.loginUser = async (req, res) => {
         fullName: user.fullName,
         role: user.role,
 
-        profileCompleted: user.profileCompleted, // true / false
-        kycStatus: user.kycStatus, // not_submitted | pending | approved | rejected
+        kycStatus: user.kycStatus,
 
         forcePinChange: user.forcePinChange,
         createdAt: user.createdAt,
@@ -246,10 +276,54 @@ exports.loginUser = async (req, res) => {
 
 // GET /api/auth/me
 exports.getMe = async (req, res) => {
-  res.status(200).json({
-    success: true,
-    user: req.user,
-  });
+  try {
+    /* =========================
+       FETCH FULL USER PROFILE
+    ========================= */
+    const user = await User.findById(req.user._id).select(
+      "-password -pinHash -__v",
+    );
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      user: {
+        id: user._id,
+        email: user.email,
+        role: user.role,
+
+        firstName: user.firstName,
+        lastName: user.lastName,
+        fullName:
+          user.fullName || `${user.firstName || ""} ${user.lastName || ""}`,
+
+        accountType: user.accountType,
+        accountNumber: user.accountNumber,
+        balance: user.balance,
+        currency: user.currency,
+
+        kycStatus: user.kycStatus,
+        status: user.status, // Active | Suspended
+
+        notifications: user.notifications,
+
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+      },
+    });
+  } catch (err) {
+    console.error("GetMe error:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch user profile",
+    });
+  }
 };
 
 /* =====================================================
@@ -358,20 +432,103 @@ exports.resetPassword = async (req, res) => {
 
 exports.logout = async (req, res) => {
   try {
-    // Get token from Authorization header
-    const token = req.headers.authorization?.split(" ")[1];
-    if (!token)
-      return res
-        .status(400)
-        .json({ success: false, message: "No token provided" });
+    /* =========================
+       ACCESS TOKEN
+    ========================= */
+    const authHeader = req.headers.authorization;
+    const token = authHeader?.startsWith("Bearer ")
+      ? authHeader.split(" ")[1]
+      : null;
 
-    // Add token to blacklist with expiry (optional: 1 hour here)
-    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // adjust to your JWT expiry
-    await TokenBlacklist.create({ token, expiresAt });
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        message: "No access token provided",
+      });
+    }
 
-    res.status(200).json({ success: true, message: "Logged out successfully" });
+    /* =========================
+       BLACKLIST ACCESS TOKEN
+    ========================= */
+    const decoded = jwt.decode(token);
+
+    await TokenBlacklist.create({
+      token,
+      expiresAt: new Date(decoded.exp * 1000), // auto-clean when JWT expires
+    });
+
+    /* =========================
+       REFRESH TOKEN REVOCATION
+    ========================= */
+    const refreshToken = req.cookies?.refreshToken;
+
+    if (refreshToken) {
+      await User.findByIdAndUpdate(decoded.id, {
+        refreshToken: null,
+      });
+    }
+
+    /* =========================
+       CLEAR COOKIE
+    ========================= */
+    res.clearCookie("refreshToken", {
+      httpOnly: true,
+      sameSite: "strict",
+      secure: process.env.NODE_ENV === "production",
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Logged out successfully",
+    });
   } catch (err) {
     console.error("Logout error:", err);
-    res.status(500).json({ success: false, message: "Failed to logout" });
+    return res.status(500).json({
+      success: false,
+      message: "Failed to logout",
+    });
+  }
+};
+
+exports.refreshToken = async (req, res) => {
+  try {
+    const refreshToken = req.cookies?.refreshToken;
+
+    if (!refreshToken) {
+      return res.status(401).json({
+        success: false,
+        message: "No refresh token provided",
+      });
+    }
+
+    // Verify refresh token
+    const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
+
+    const user = await User.findById(decoded.id);
+
+    if (!user || user.refreshToken !== refreshToken) {
+      return res.status(403).json({
+        success: false,
+        message: "Invalid refresh token",
+      });
+    }
+
+    // Issue new access token
+    const newAccessToken = jwt.sign(
+      { id: user._id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "20m" },
+    );
+
+    res.json({
+      success: true,
+      token: newAccessToken,
+    });
+  } catch (err) {
+    console.error("Refresh token error:", err);
+    return res.status(403).json({
+      success: false,
+      message: "Refresh token expired or invalid",
+    });
   }
 };

@@ -9,7 +9,6 @@ const {
   getActiveSessions,
   logoutSession,
   logoutAllOtherSessions,
-  completeProfile, // new endpoint
 } = require("../controllers/userController");
 
 // -----------------------------
@@ -28,10 +27,5 @@ router.get("/dashboard", protect, getDashboard);
 router.get("/sessions", protect, getActiveSessions);
 router.post("/sessions/logout", protect, logoutSession);
 router.post("/sessions/logout-others", protect, logoutAllOtherSessions);
-
-// -----------------------------
-// COMPLETE PROFILE
-// -----------------------------
-router.post("/complete-profile", protect, completeProfile);
 
 module.exports = router;
