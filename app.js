@@ -91,7 +91,6 @@ const { protect } = require("./middlewares/authMiddleware");
 const authRoutes = require("./routes/authRoutes");
 const kycRoutes = require("./routes/kycRoutes");
 const userRoutes = require("./routes/userRoutes");
-const beneficiariesRoutes = require("./routes/beneficiariesRoutes");
 const transactionRoutes = require("./routes/transactionRoutes");
 const settingsRoutes = require("./routes/settingsRoutes");
 const walletRoutes = require("./routes/walletRoutes");
@@ -122,7 +121,6 @@ app.use("/api", updateSession, protect);
 
 app.use("/api/kyc", kycRoutes);
 app.use("/api/users", userRoutes);
-app.use("/api/beneficiaries", beneficiariesRoutes);
 app.use("/api/transactions", transactionRoutes);
 app.use("/api/settings", settingsRoutes);
 app.use("/api/notify", notifyRoutes);
