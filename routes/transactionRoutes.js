@@ -37,12 +37,11 @@ router.get("/export/pdf", protect, exportTransactionsPDF);
 router.get("/", protect, getTransactions);
 
 // ===============================
-// CREATE TRANSACTION (PIN + KYC REQUIRED)
+// CREATE TRANSACTION (PIN REQUIRED, KYC checked for 2nd+ transfers)
 // ===============================
 router.post(
   "/",
   protect,
-  requireVerifiedKyc, // 🔒 BLOCK IF KYC NOT VERIFIED
   verifyTransactionPin,
   createTransaction
 );

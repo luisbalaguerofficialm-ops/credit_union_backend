@@ -1,13 +1,17 @@
+const User = require("../models/User");
 const Transaction = require("../models/Transaction");
 const Wallet = require("../models/Wallet");
 const emitDashboardUpdate = require("../utils/emitDashboardUpdate");
 const { Parser } = require("json2csv");
+
 const PDFDocument = require("pdfkit");
+const Notification = require("../models/Notification");
 
 //CENTRALIZED NOTIFICATION UTILS
 const {
   sendTransactionAlert,
   sendTransferFeeAlert,
+  sendRecipientTransferAlert,
 } = require("../utils/notify");
 
 // ===============================
@@ -49,20 +53,19 @@ exports.getTransactionByTransactionId = async (req, res) => {
     res.status(500).json({ success: false, message: "Server error" });
   }
 };
-
 // ===============================
 // CREATE TRANSACTION / TRANSFER
 // ===============================
 exports.createTransaction = async (req, res) => {
   try {
-    const { recipientName, accountNumber, bankName, amount, narration } =
+    const { recipientName, email, accountNumber, bankName, amount, narration } =
       req.body;
 
-    if (!recipientName || !accountNumber || !bankName || !amount) {
+    if (!recipientName || !email || !accountNumber || !bankName || !amount) {
       return res.status(400).json({
         success: false,
         message:
-          "Recipient name, account number, bank name, and amount are required",
+          "Recipient name, recipient email, account number, bank name, and amount are required",
       });
     }
 
@@ -74,42 +77,92 @@ exports.createTransaction = async (req, res) => {
     }
 
     // ===============================
-    // CHECK WALLET
+    // GET USER & WALLET
     // ===============================
+    const user = await User.findById(req.user._id);
     const wallet = await Wallet.findOne({ user: req.user._id });
+
     if (!wallet || wallet.balance < parsedAmount) {
       return res
         .status(400)
         .json({ success: false, message: "Insufficient balance" });
     }
 
+    // ===============================
+    // CHECK IF FIRST TRANSFER
+    // ===============================
+    const previousTransfersCount = await Transaction.countDocuments({
+      user: user._id,
+      type: "Transfer",
+    });
+
+    const isFirstTransfer = previousTransfersCount === 0;
+
+    // ===============================
+    // BLOCK IF NOT FIRST & KYC NOT APPROVED
+    // ===============================
+    if (!isFirstTransfer && user.kycStatus !== "approved") {
+      await Notification.create({
+        user: user._id,
+        title: "KYC Required",
+        message:
+          "Your first transfer was successful. Please complete KYC to continue making transfers.",
+        type: "kyc",
+      });
+
+      return res.status(403).json({
+        success: false,
+        message:
+          "KYC verification required. Please complete KYC to continue transfers.",
+      });
+    }
+
+    // ===============================
+    // DEDUCT WALLET
+    // ===============================
     wallet.balance -= parsedAmount;
     await wallet.save();
 
     // ===============================
-    // CREATE TRANSACTION
+    // CREATE TRANSACTION (PENDING)
     // ===============================
     const transaction = await Transaction.create({
-      user: req.user._id,
+      user: user._id,
       type: "Transfer",
       recipientName,
+      recipientEmail: email,
+      email: user.email,
       accountNumber,
       bankName,
       amount: parsedAmount,
-      status: "Successful",
+      status: "Pending",
       description: narration,
-      transactionId: "TXN" + Math.floor(Math.random() * 100000000),
+      transactionId: "TXN" + Date.now(),
     });
 
+    // ===============================
+    // REALTIME DASHBOARD UPDATE
+    // ===============================
     const io = req.app.get("io");
-    await emitDashboardUpdate(io, req.user._id);
+    await emitDashboardUpdate(io, user._id);
 
     // ===============================
-    // 🔔 TRANSACTION ALERT (EMAIL + SMS)
+    // SENDER NOTIFICATION
     // ===============================
+    await Notification.create({
+      user: user._id,
+      title: "Transfer Initiated",
+      message: `You sent $${parsedAmount.toLocaleString()} to ${recipientName}. Status: Pending.`,
+      type: "transaction",
+    });
+
+    // ===============================
+    // EMAIL SENDER
+    // ===============================
+    console.log("📧 Attempting to send transaction alert to:", user.email);
     await sendTransactionAlert({
-      email: req.user.email,
-      phone: req.user.phone,
+      email: user.email,
+      phone: user.phone,
       type: "Transfer",
       amount: parsedAmount,
       balance: wallet.balance,
@@ -117,22 +170,65 @@ exports.createTransaction = async (req, res) => {
     });
 
     // ===============================
-    // 🔔 TRANSFER FEE ALERT (EMAIL + SMS)
+    // EMAIL RECIPIENT (PENDING)
     // ===============================
-    const transferFeeAmount = 100000; // example fee
-
-    await sendTransferFeeAlert({
-      email: req.user.email,
-      phone: req.user.phone,
-      amount: transferFeeAmount,
+    console.log("📧 Attempting to send recipient transfer email to:", email);
+    await sendRecipientTransferAlert({
+      email,
       recipientName,
+      senderName:
+        user.firstName && user.lastName
+          ? `${user.firstName} ${user.lastName}`
+          : user.email,
+      amount: parsedAmount,
       currency: "$",
+      transactionId: transaction.transactionId,
     });
 
-    res.status(201).json({ success: true, transaction });
+    // ===============================
+    // TRANSFER FEE ALERT (log + safe)
+    // ===============================
+    const transferFeeAmount = 100000;
+
+    try {
+      console.log(
+        "📧 Sending transfer fee alert to:",
+        user.email,
+        "amount:",
+        transferFeeAmount,
+      );
+
+      await sendTransferFeeAlert({
+        email: user.email,
+        phone: user.phone,
+        amount: transferFeeAmount,
+        recipientName,
+        currency: "$",
+      });
+
+      console.log("✅ Transfer fee alert attempt finished for:", user.email);
+    } catch (err) {
+      console.error(
+        "❌ sendTransferFeeAlert threw an error:",
+        err.message,
+        err.stack,
+      );
+    }
+
+    res.status(201).json({
+      success: true,
+      message: isFirstTransfer
+        ? "First transfer successful. KYC will be required for future transfers."
+        : "Transfer initiated successfully",
+      transaction,
+    });
   } catch (err) {
-    console.error("Create Transaction Error:", err);
-    res.status(500).json({ success: false, message: "Transfer failed" });
+    console.error("Create Transaction Error:", err.message, err.stack);
+    res.status(500).json({
+      success: false,
+      message: "Transfer failed",
+      error: err.message,
+    });
   }
 };
 
@@ -330,7 +426,7 @@ exports.exportTransactionsPDF = async (req, res) => {
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
       "Content-Disposition",
-      "attachment; filename=transactions.pdf"
+      "attachment; filename=transactions.pdf",
     );
 
     doc.pipe(res);

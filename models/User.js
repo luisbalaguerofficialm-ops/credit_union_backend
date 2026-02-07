@@ -53,20 +53,15 @@ const UserSchema = new mongoose.Schema(
       default: null,
     },
 
+    firstTransferCompleted: {
+      type: Boolean,
+      default: false,
+    },
+
     accountNumber: {
       type: Number,
       unique: true,
       index: true,
-    },
-
-    balance: {
-      type: Number,
-      default: 0,
-    },
-
-    currency: {
-      type: String,
-      default: "USD",
     },
 
     pinHash: {

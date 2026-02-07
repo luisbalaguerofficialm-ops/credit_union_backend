@@ -3,7 +3,7 @@ const User = require("../models/User");
 
 const verifyTransactionPin = async (req, res, next) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user._id;
     const { transactionPin } = req.body;
 
     if (!transactionPin) {
@@ -15,11 +15,9 @@ const verifyTransactionPin = async (req, res, next) => {
     if (!user) return res.status(404).json({ message: "User not found" });
 
     if (!user.pinHash) {
-      return res
-        .status(400)
-        .json({
-          message: "Transaction PIN not set. Please set your PIN first.",
-        });
+      return res.status(400).json({
+        message: "Transaction PIN not set. Please set your PIN first.",
+      });
     }
 
     const isMatch = await bcrypt.compare(transactionPin, user.pinHash);

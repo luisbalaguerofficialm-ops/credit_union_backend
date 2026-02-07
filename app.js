@@ -7,7 +7,6 @@ const http = require("http");
 const { Server } = require("socket.io");
 const cookieParser = require("cookie-parser");
 
-
 dotenv.config();
 
 const app = express();
@@ -61,7 +60,7 @@ io.on("connection", (socket) => {
     try {
       await ChatMessage.updateMany(
         { chatSession: chatId, read: false },
-        { read: true }
+        { read: true },
       );
       io.to("admin-room").emit("chat:update", { chatId, messagesRead: true });
     } catch (err) {
@@ -100,6 +99,7 @@ const chatRoutes = require("./routes/chatRoutes");
 const notifyRoutes = require("./routes/notifyRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 const FundsRoutes = require("./routes/FundsRoutes");
+const dashboardRoutes = require("./routes/dashboardRoutes");
 
 /* ==============================
    PUBLIC ROUTE
@@ -112,7 +112,6 @@ app.get("/", (req, res) => {
    AUTH ROUTES (PUBLIC)
 ============================== */
 app.use("/api/auth", authRoutes);
-
 
 /* ==============================
 
@@ -130,8 +129,8 @@ app.use("/api/notify", notifyRoutes);
 app.use("/api/wallet", walletRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/dashboard", dashboardRoutes);
 app.use("/api", FundsRoutes);
-
 
 /* ==============================
    404 HANDLER

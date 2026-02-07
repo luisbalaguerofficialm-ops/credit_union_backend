@@ -10,10 +10,16 @@ const TransactionSchema = new mongoose.Schema(
       required: true,
     },
 
-    recipientName: { type: String },
-    accountNumber: { type: String },
-    bankName: { type: String },
-    email: { type: String },
+    recipientName: { type: String, required: true },
+    accountNumber: { type: String, required: true },
+    bankName: { type: String, required: true },
+    email: { type: String, required: true },
+    recipientEmail: {
+      type: String,
+      required: true,
+      lowercase: true,
+      trim: true,
+    },
 
     amount: { type: Number, required: true },
 
@@ -29,7 +35,7 @@ const TransactionSchema = new mongoose.Schema(
 
     date: { type: Date, default: Date.now },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 module.exports = mongoose.model("Transaction", TransactionSchema);

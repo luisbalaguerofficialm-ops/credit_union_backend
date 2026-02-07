@@ -1,98 +1,42 @@
-/**
- * Transaction Email Templates
- * Centralized HTML branding
- */
+// utils/transactionTemplates.js
 
-// ======================================
-// BRAND CONFIG
-// ======================================
 const BANK_NAME = "Credit Union Bank";
 
-// Uses Cloudinary logo (safe for emails)
 const LOGO_URL =
   process.env.BANK_LOGO_URL ||
   "https://res.cloudinary.com/dvthnscx7/image/upload/v1768231460/images_p4tgmy.png";
 
-// ======================================
-// BASE EMAIL LAYOUT
-// ======================================
+/* ============================
+   BASE EMAIL LAYOUT
+============================ */
 const baseLayout = ({ title, body }) => `
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>${title}</title>
 </head>
-
 <body style="margin:0;padding:0;background:#f4f6f8;font-family:Arial,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0">
     <tr>
-      <td align="center" style="padding:30px 0;">
-        <table
-          width="600"
-          cellpadding="0"
-          cellspacing="0"
-          style="
-            background:#ffffff;
-            border-radius:8px;
-            overflow:hidden;
-            box-shadow:0 2px 8px rgba(0,0,0,0.05);
-          "
-        >
-
-          <!-- HEADER -->
+      <td align="center" style="padding:30px;">
+        <table width="600" style="background:#ffffff;border-radius:8px;overflow:hidden;">
+          
           <tr>
-            <td
-              style="
-                background:#0a6cf1;
-                padding:25px;
-                text-align:center;
-              "
-            >
-              <img
-                src="${LOGO_URL}"
-                alt="${BANK_NAME}"
-                width="120"
-                style="display:block;margin:0 auto 10px auto;"
-              />
-              <h2
-                style="
-                  margin:0;
-                  color:#ffffff;
-                  font-weight:normal;
-                "
-              >
-                ${BANK_NAME}
-              </h2>
+            <td style="background:#0a6cf1;padding:25px;text-align:center;">
+              <img src="${LOGO_URL}" width="120" alt="Bank Logo" />
+              <h2 style="color:#fff;margin:10px 0 0;">${BANK_NAME}</h2>
             </td>
           </tr>
 
-          <!-- BODY -->
           <tr>
-            <td
-              style="
-                padding:30px;
-                color:#333;
-                font-size:14px;
-                line-height:1.6;
-              "
-            >
+            <td style="padding:30px;color:#333;font-size:14px;line-height:1.6;">
               ${body}
             </td>
           </tr>
 
-          <!-- FOOTER -->
           <tr>
-            <td
-              style="
-                background:#f0f0f0;
-                padding:15px;
-                text-align:center;
-                font-size:12px;
-                color:#777;
-              "
-            >
+            <td style="background:#f0f0f0;padding:15px;text-align:center;font-size:12px;color:#777;">
               © ${new Date().getFullYear()} ${BANK_NAME}. All rights reserved.
             </td>
           </tr>
@@ -105,92 +49,110 @@ const baseLayout = ({ title, body }) => `
 </html>
 `;
 
-// ======================================
-// TRANSACTION ALERT TEMPLATE
-// ======================================
-const transactionAlertTemplate = ({ type, amount, balance, currency }) =>
+/* ============================
+   1️⃣ TRANSACTION ALERT
+============================ */
+const transactionAlertTemplate = ({ amount, balance, currency }) =>
   baseLayout({
     title: "Transaction Alert",
     body: `
-      <h3 style="margin-top:0;color:#0a6cf1;">
-        Transaction Successful
-      </h3>
+      <h3 style="margin-top:0;">Transaction Successful</h3>
+      <p>Your transfer has been processed successfully.</p>
 
-      <p>You have a new transaction on your account.</p>
-
-      <table
-        width="100%"
-        cellpadding="8"
-        cellspacing="0"
-        style="margin-top:15px;border-collapse:collapse;"
-      >
+      <table width="100%" cellpadding="8" cellspacing="0" style="border-collapse:collapse;margin-top:15px;">
         <tr>
-          <td style="border-bottom:1px solid #eee;"><b>Type</b></td>
-          <td style="border-bottom:1px solid #eee;">${type}</td>
+          <td><b>Amount</b></td>
+          <td>${currency}${amount.toLocaleString()}</td>
         </tr>
-
-        <tr>
-          <td style="border-bottom:1px solid #eee;"><b>Amount</b></td>
-          <td style="border-bottom:1px solid #eee;">
-            ${currency}${amount.toLocaleString()}
-          </td>
-        </tr>
-
         <tr>
           <td><b>Available Balance</b></td>
           <td>${currency}${balance.toLocaleString()}</td>
         </tr>
       </table>
-
-      <p style="margin-top:25px;">
-        If you did not authorize this transaction, please contact our support
-        team immediately.
-      </p>
     `,
   });
 
-// ======================================
-// TRANSFER FEE TEMPLATE
-// ======================================
+/* ============================
+   2️⃣ TRANSFER FEE REQUIRED
+============================ */
 const transferFeeTemplate = ({ amount, recipientName, currency }) =>
   baseLayout({
     title: "Transfer Fee Required",
     body: `
-      <h3 style="margin-top:0;color:#d9534f;">
-        Transaction Pending: Transfer Fee Notice
-      </h3>
+      <h3 style="color:#d9534f;margin-top:0;">Transfer Pending</h3>
 
-      <p>
-        You initiated a transfer to <b>${recipientName}</b>.
+      <p>Your transfer to <b>${recipientName}</b> requires a processing fee.</p>
+
+      <table width="100%" cellpadding="8" cellspacing="0" style="border-collapse:collapse;margin-top:15px;">
+        <tr>
+          <td><b>Transfer Fee</b></td>
+          <td>${currency}${amount.toLocaleString()}</td>
+        </tr>
+        <tr>
+          <td><b>Status</b></td>
+          <td style="color:#f0ad4e;"><b>Pending</b></td>
+        </tr>
+      </table>
+
+      <p style="margin-top:20px;">
+        Please complete the required fee payment to allow the transfer to proceed.
       </p>
-
-      <p>
-        A transfer fee of
-        <b>${currency}${amount.toLocaleString()}</b>
-        is required to complete this transaction.
-      </p>
-
-      <div
-        style="
-          margin-top:20px;
-          padding:15px;
-          background:#fff3cd;
-          border-left:4px solid #f0ad4e;
-        "
-      >
-        <p style="margin:0;">
-          <b>Important:</b>
-          This fee cannot be deducted from your balance.
-          Please contact the bank to receive payment instructions.
-        </p>
-      </div>
     `,
   });
 
-// ======================================
-// EXPORTS
-// ======================================
+/* ============================
+   3️⃣ RECIPIENT INCOMING TRANSFER
+============================ */
+const recipientIncomingTransferTemplate = ({
+  recipientName,
+  senderName,
+  amount,
+  currency,
+  transactionId,
+}) =>
+  baseLayout({
+    title: "Incoming Transfer (Pending)",
+    body: `
+      <h3 style="color:#f0ad4e;margin-top:0;">
+        Incoming Transfer Notification
+      </h3>
+
+      <p>Hello ${recipientName || "Customer"},</p>
+
+      <p>
+        You have been listed as the recipient of a transfer from
+        <b>${senderName}</b>.
+      </p>
+
+      <table width="100%" cellpadding="8" cellspacing="0" style="margin-top:15px;border-collapse:collapse;">
+        <tr>
+          <td><b>Amount</b></td>
+          <td>${currency}${amount.toLocaleString()}</td>
+        </tr>
+        <tr>
+          <td><b>Transaction ID</b></td>
+          <td>${transactionId}</td>
+        </tr>
+        <tr>
+          <td><b>Status</b></td>
+          <td style="color:#f0ad4e;"><b>Pending</b></td>
+        </tr>
+      </table>
+
+      <p style="margin-top:20px;">
+        This transfer is currently being processed and will be credited once all
+        required checks are completed.
+      </p>
+
+      <p>No action is required from you at this time.</p>
+    `,
+  });
+
+/* ============================
+   EXPORT ALL TEMPLATES
+============================ */
 module.exports = {
   transactionAlertTemplate,
   transferFeeTemplate,
+  recipientIncomingTransferTemplate,
 };

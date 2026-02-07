@@ -8,10 +8,22 @@ const Transaction = require("../models/Transaction");
 // ===============================
 exports.getWalletBalance = async (req, res) => {
   try {
-    const wallet = await Wallet.findOne({ user: req.user._id });
+    // Try to fetch the wallet
+    let wallet = await Wallet.findOne({ user: req.user._id });
+
+    // If wallet doesn't exist, create one with initial balance
+    if (!wallet) {
+      wallet = await Wallet.create({
+        user: req.user._id,
+        balance: 500000000, // initial available balance
+        currency: "$",
+      });
+    }
+
     res.json({
       success: true,
-      balance: wallet?.balance || 0,
+      balance: wallet.balance,
+      currency: wallet.currency,
     });
   } catch (err) {
     console.error("Wallet fetch error:", err);

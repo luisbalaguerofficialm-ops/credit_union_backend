@@ -6,25 +6,26 @@ const WalletSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
-      unique: true, // one wallet per user
+      unique: true, 
     },
     balance: {
       type: Number,
-      default: 0, // starts at zero automatically
-      min: 0, // prevents negative balances
+      default: 500000000,
+      min: 0,
     },
     currency: {
       type: String,
-      required: true, // must specify currency
+      default: "$",
+      required: true, 
       trim: true,
     },
     lastUpdatedBy: {
       type: String,
-      enum: ["user", "admin", "system"],
+      enum: ["user", "superadmin", "admin", "system"],
       default: "system", // tracks who updated the wallet last
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 // Helper method to safely add funds

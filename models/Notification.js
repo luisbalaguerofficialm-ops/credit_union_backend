@@ -10,7 +10,7 @@ const NotificationSchema = new mongoose.Schema(
 
     type: {
       type: String,
-      enum: ["transaction", "security", "system"],
+      enum: ["transaction", "security", "kyc", "system"],
       required: true,
     },
 

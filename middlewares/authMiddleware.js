@@ -16,9 +16,9 @@ async function protect(req, res, next) {
 
     const token = authHeader.split(" ")[1];
 
-    /* ============================
-       CHECK BLACKLIST
-    ============================ */
+    // ============================
+    // CHECK BLACKLIST
+    // ============================
     const blacklisted = await TokenBlacklist.findOne({ token });
     if (blacklisted) {
       return res.status(401).json({
@@ -28,9 +28,9 @@ async function protect(req, res, next) {
     }
 
     try {
-      /* ============================
-         VERIFY ACCESS TOKEN
-      ============================ */
+      // ============================
+      // VERIFY ACCESS TOKEN
+      // ============================
       const payload = jwt.verify(token, process.env.JWT_SECRET);
 
       const user = await User.findById(payload.id).select("_id role email");
@@ -41,12 +41,18 @@ async function protect(req, res, next) {
         });
       }
 
-      req.user = user;
+      // 🔥 FIX: always attach a plain object
+      req.user = {
+        _id: user._id,
+        role: user.role,
+        email: user.email,
+      };
+
       return next();
     } catch (err) {
-      /* ============================
-         ACCESS TOKEN EXPIRED → TRY REFRESH
-      ============================ */
+      // ============================
+      // ACCESS TOKEN EXPIRED → TRY REFRESH
+      // ============================
       if (err.name !== "TokenExpiredError") {
         return res.status(401).json({
           success: false,
@@ -62,16 +68,16 @@ async function protect(req, res, next) {
         });
       }
 
-      /* ============================
-         VERIFY REFRESH TOKEN
-      ============================ */
+      // ============================
+      // VERIFY REFRESH TOKEN
+      // ============================
       let refreshPayload;
       try {
         refreshPayload = jwt.verify(
           refreshToken,
           process.env.JWT_REFRESH_SECRET,
         );
-      } catch (e) {
+      } catch {
         return res.status(401).json({
           success: false,
           message: "Invalid refresh token",
@@ -89,19 +95,24 @@ async function protect(req, res, next) {
         });
       }
 
-      /* ============================
-         ISSUE NEW ACCESS TOKEN
-      ============================ */
+      // ============================
+      // ISSUE NEW ACCESS TOKEN
+      // ============================
       const newAccessToken = jwt.sign(
         { id: user._id, role: user.role },
         process.env.JWT_SECRET,
         { expiresIn: "15m" },
       );
 
-      // 🔥 Send new token to frontend
       res.setHeader("x-access-token", newAccessToken);
 
-      req.user = user;
+      // 🔥 FIX AGAIN
+      req.user = {
+        _id: user._id,
+        role: user.role,
+        email: user.email,
+      };
+
       next();
     }
   } catch (error) {

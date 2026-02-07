@@ -2,6 +2,7 @@ const User = require("../models/User");
 const Transaction = require("../models/Transaction");
 const Notification = require("../models/Notification");
 const Session = require("../models/Session");
+const Wallet = require("../models/Wallet");
 
 /* ===============================
    GET USER PROFILE (NEW)
@@ -43,19 +44,27 @@ exports.getUserProfile = async (req, res) => {
 ================================ */
 exports.getDashboard = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id);
+    const userId = req.user._id;
+    const user = await User.findById(userId);
 
-    const transactions = await Transaction.find({ user: user._id })
+    // Fetch wallet to get balance and currency
+    let wallet = await Wallet.findOne({ user: userId });
+    if (!wallet) {
+      wallet = await Wallet.create({ user: userId });
+    }
+
+    const transactions = await Transaction.find({ user: userId })
       .sort({ createdAt: -1 })
       .limit(10);
 
-    const notifications = await Notification.find({ user: user._id })
+    const notifications = await Notification.find({ user: userId })
       .sort({ createdAt: -1 })
       .limit(10);
 
     res.json({
       success: true,
-      balance: user.balance,
+      balance: wallet.balance,
+      currency: wallet.currency,
       accountNumber: user.accountNumber,
       transactions,
       notifications,

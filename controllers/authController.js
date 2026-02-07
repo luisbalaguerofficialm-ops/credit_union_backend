@@ -1,6 +1,7 @@
 // controllers/authController.js
 const User = require("../models/User");
 const jwt = require("jsonwebtoken");
+const Wallet = require("../models/Wallet");
 const bcrypt = require("bcryptjs");
 const TokenBlacklist = require("../models/TokenBlacklist");
 const generateAccountNumber = require("../utils/generateAccountNumber");
@@ -47,6 +48,8 @@ exports.registerUser = async (req, res) => {
       !lastName ||
       !email ||
       !username ||
+      !phone ||
+      !accountType ||
       !password ||
       !confirmPassword
     ) {
@@ -171,16 +174,14 @@ Login to change your PIN.`,
   }
 };
 
-/// =====================================================
-// LOGIN (PASSWORD)
-// =====================================================
+// ===============================
+// LOGIN USER
+// ===============================
 exports.loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    /* =====================
-       VALIDATION
-    ===================== */
+    // ===================== VALIDATION =====================
     if (!email || !password) {
       return res.status(400).json({
         success: false,
@@ -188,11 +189,8 @@ exports.loginUser = async (req, res) => {
       });
     }
 
-    /* =====================
-       FIND USER
-    ===================== */
+    // ===================== FIND USER =====================
     const user = await User.findOne({ email: email.toLowerCase() });
-
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -200,11 +198,8 @@ exports.loginUser = async (req, res) => {
       });
     }
 
-    /* =====================
-       CHECK PASSWORD
-    ===================== */
+    // ===================== CHECK PASSWORD =====================
     const isMatch = await bcrypt.compare(password, user.password);
-
     if (!isMatch) {
       return res.status(400).json({
         success: false,
@@ -212,31 +207,23 @@ exports.loginUser = async (req, res) => {
       });
     }
 
-    /* =====================
-       TOKENS
-    ===================== */
-
-    // 🔐 Access token (short-lived)
+    // ===================== TOKENS =====================
     const accessToken = jwt.sign(
       { id: user._id, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: "20m" },
     );
 
-    // 🔁 Refresh token (long-lived)
     const refreshToken = jwt.sign(
       { id: user._id },
       process.env.JWT_REFRESH_SECRET,
       { expiresIn: "10d" },
     );
 
-    // Save refresh token in DB
     user.refreshToken = refreshToken;
     await user.save();
 
-    /* =====================
-       COOKIE (REFRESH TOKEN)
-    ===================== */
+    // ===================== COOKIE =====================
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
@@ -244,29 +231,31 @@ exports.loginUser = async (req, res) => {
       maxAge: 10 * 24 * 60 * 60 * 1000, // 10 days
     });
 
-    /* =====================
-       RESPONSE
-    ===================== */
+    // ===================== FETCH OR CREATE WALLET =====================
+    let wallet = await Wallet.findOne({ user: user._id });
+    if (!wallet) {
+      wallet = await Wallet.create({ user: user._id }); // default balance applied
+    }
+
+    // ===================== RESPONSE =====================
     res.status(200).json({
       success: true,
       message: "Login successful",
-      token: accessToken,
-
+      accessToken,
       user: {
         id: user._id,
         email: user.email,
         fullName: user.fullName,
         role: user.role,
-
         kycStatus: user.kycStatus,
-
         forcePinChange: user.forcePinChange,
         createdAt: user.createdAt,
+        walletBalance: wallet.balance,
+        currency: wallet.currency,
       },
     });
   } catch (err) {
     console.error("Login Error:", err);
-
     res.status(500).json({
       success: false,
       message: "Login failed",
@@ -274,12 +263,11 @@ exports.loginUser = async (req, res) => {
   }
 };
 
-// GET /api/auth/me
+// ===============================
+// GET AUTHENTICATED USER PROFILE
+// ===============================
 exports.getMe = async (req, res) => {
   try {
-    /* =========================
-       FETCH FULL USER PROFILE
-    ========================= */
     const user = await User.findById(req.user._id).select(
       "-password -pinHash -__v",
     );
@@ -291,28 +279,30 @@ exports.getMe = async (req, res) => {
       });
     }
 
+    // ===================== FETCH OR CREATE WALLET =====================
+    let wallet = await Wallet.findOne({ user: req.user._id });
+    if (!wallet) {
+      wallet = await Wallet.create({ user: req.user._id }); // default balance applied
+    }
+
+    // ===================== RESPONSE =====================
     return res.status(200).json({
       success: true,
       user: {
         id: user._id,
         email: user.email,
         role: user.role,
-
         firstName: user.firstName,
         lastName: user.lastName,
         fullName:
           user.fullName || `${user.firstName || ""} ${user.lastName || ""}`,
-
         accountType: user.accountType,
         accountNumber: user.accountNumber,
-        balance: user.balance,
-        currency: user.currency,
-
+        balance: wallet.balance,
+        currency: wallet.currency,
         kycStatus: user.kycStatus,
-        status: user.status, // Active | Suspended
-
+        status: user.status,
         notifications: user.notifications,
-
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
       },
