@@ -6,7 +6,7 @@ const WalletSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
-      unique: true, 
+      unique: true,
     },
     balance: {
       type: Number,
@@ -15,8 +15,8 @@ const WalletSchema = new mongoose.Schema(
     },
     currency: {
       type: String,
-      default: "$",
-      required: true, 
+      default: "USD",
+      required: true,
       trim: true,
     },
     lastUpdatedBy: {

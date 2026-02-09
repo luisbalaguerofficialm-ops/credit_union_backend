@@ -47,18 +47,14 @@ exports.getDashboardData = async (req, res) => {
       user: {
         _id: user._id,
         accountNumber: user.accountNumber,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        email: user.email,
-        phoneNumber: user.phoneNumber,
       },
       balance: {
-        balance: balance,
-        currency: currency,
+        balance: wallet.balance,
+        currency: wallet.currency || "USD",
         accountNumber: user.accountNumber,
       },
-      notifications: user.notifications?.reverse() || [],
       transactions,
+      notifications: user.notifications || [],
     });
   } catch (err) {
     console.error("Dashboard fetch error:", err);
