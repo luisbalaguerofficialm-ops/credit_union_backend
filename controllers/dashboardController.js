@@ -10,7 +10,7 @@ exports.getDashboardData = async (req, res) => {
     // FETCH USER
     // ===============================
     const user = await User.findById(userId).select(
-      "accountNumber notifications",
+      "accountNumber notifications firstName lastName email phoneNumber",
     );
 
     if (!user) {
@@ -44,12 +44,20 @@ exports.getDashboardData = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      balance: user.wallet ? user.wallet.balance : 0,
-      currency: user.wallet ? user.wallet.currency : "$",
-      accountNumber: user.accountNumber,
+      user: {
+        _id: user._id,
+        accountNumber: user.accountNumber,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        phoneNumber: user.phoneNumber,
+      },
+      balance: {
+        balance: balance,
+        currency: currency,
+        accountNumber: user.accountNumber,
+      },
       notifications: user.notifications?.reverse() || [],
-      unreadNotifications:
-        user.notifications?.filter((n) => !n.read).length || 0,
       transactions,
     });
   } catch (err) {
