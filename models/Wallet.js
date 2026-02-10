@@ -15,10 +15,10 @@ const WalletSchema = new mongoose.Schema(
     },
     currency: {
       type: String,
+      enum: ["USD", "EUR", "GBP"],
       default: "USD",
-      required: true,
-      trim: true,
     },
+
     lastUpdatedBy: {
       type: String,
       enum: ["user", "superadmin", "admin", "system"],

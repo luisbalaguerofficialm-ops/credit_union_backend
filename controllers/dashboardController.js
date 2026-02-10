@@ -10,7 +10,7 @@ exports.getDashboardData = async (req, res) => {
     // FETCH USER
     // ===============================
     const user = await User.findById(userId).select(
-      "accountNumber notifications firstName lastName email phoneNumber",
+      "firstName lastName email accountNumber kycStatus notifications",
     );
 
     if (!user) {
@@ -21,19 +21,23 @@ exports.getDashboardData = async (req, res) => {
     }
 
     // ===============================
-    // FETCH WALLET (from wallet model)
+    // FETCH OR CREATE WALLET
     // ===============================
     let wallet = await Wallet.findOne({ user: userId });
 
-    // If wallet doesn't exist, create it with default balance
     if (!wallet) {
-      wallet = await Wallet.create({ user: userId });
+      wallet = await Wallet.create({
+        user: userId,
+        balance: 0,
+        currency: "USD", // ISO currency only
+      });
     }
 
-    console.log("Wallet found:", wallet);
-    const balance = wallet.balance;
-    const currency = wallet.currency;
-    console.log("Balance:", balance, "Currency:", currency);
+    // HARD GUARD AGAINST INVALID CURRENCY
+    const safeCurrency =
+      typeof wallet.currency === "string" && wallet.currency.length === 3
+        ? wallet.currency
+        : "USD";
 
     // ===============================
     // FETCH TRANSACTIONS
@@ -42,17 +46,26 @@ exports.getDashboardData = async (req, res) => {
       .sort({ createdAt: -1 })
       .limit(15);
 
+    // ===============================
+    // RESPONSE (MATCHES FRONTEND)
+    // ===============================
     res.status(200).json({
       success: true,
+
       user: {
         _id: user._id,
+        fullName: `${user.firstName} ${user.lastName}`,
+        email: user.email,
         accountNumber: user.accountNumber,
+        kycStatus: user.kycStatus,
       },
+
       balance: {
         balance: wallet.balance,
-        currency: wallet.currency || "USD",
+        currency: safeCurrency,
         accountNumber: user.accountNumber,
       },
+
       transactions,
       notifications: user.notifications || [],
     });
