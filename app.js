@@ -99,6 +99,7 @@ const notifyRoutes = require("./routes/notifyRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 const FundsRoutes = require("./routes/FundsRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
+const pinRoutes = require("./routes/pinRoutes");
 
 /* ==============================
    PUBLIC ROUTE
@@ -129,6 +130,7 @@ app.use("/api/chat", chatRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api", FundsRoutes);
+app.use("/api/pin", pinRoutes);
 
 /* ==============================
    404 HANDLER

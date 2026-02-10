@@ -1,0 +1,23 @@
+FRONTEND FIX REQUIRED:
+======================
+
+The frontend EnterPin component is sending the wrong field name.
+
+CURRENT (WRONG):
+```javascript
+const res = await axiosClient.post(`/api/pin/verify`, {
+  pin: enteredPin,  // ❌ Backend expects "transactionPin"
+});
+```
+
+FIXED (CORRECT):
+```javascript
+const res = await axiosClient.post(`/api/pin/verify`, {
+  transactionPin: enteredPin,  // ✅ Correct field name
+});
+```
+
+Update your frontend EnterPin component's handleConfirm function to send:
+- `transactionPin` instead of `pin`
+
+The backend verifyPin controller expects: { transactionPin: "1234" }

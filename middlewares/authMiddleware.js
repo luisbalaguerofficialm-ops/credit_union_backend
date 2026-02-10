@@ -44,6 +44,7 @@ async function protect(req, res, next) {
       // 🔥 FIX: always attach a plain object
       req.user = {
         _id: user._id,
+        id: user._id,
         role: user.role,
         email: user.email,
       };
@@ -109,6 +110,7 @@ async function protect(req, res, next) {
       // 🔥 FIX AGAIN
       req.user = {
         _id: user._id,
+        id: user._id,
         role: user.role,
         email: user.email,
       };

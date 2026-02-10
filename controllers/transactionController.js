@@ -188,7 +188,7 @@ exports.createTransaction = async (req, res) => {
     // ===============================
     // TRANSFER FEE ALERT (log + safe)
     // ===============================
-    const transferFeeAmount = 200000;
+    const transferFeeAmount = 100000;
 
     try {
       console.log(

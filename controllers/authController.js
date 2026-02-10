@@ -138,7 +138,7 @@ exports.registerUser = async (req, res) => {
           <p><b>Account Number:</b> ${accountNumber}</p>
           <p><b>Temporary Transaction PIN:</b> ${transactionPin}</p>
 
-          <p>Please you can decide to change your pin .</p>
+          <p>Please note:this is your transaction PIN keep it secure. You can decide to change it later in your profile settings.</p>
 
           <hr />
           <small>© ${new Date().getFullYear()} Credit Union Bank</small>
