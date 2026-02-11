@@ -12,37 +12,47 @@ const {
 
 const { protect } = require("../middlewares/authMiddleware");
 
-// Get all notifications
+// ===============================
+// GET ALL NOTIFICATIONS
+// ===============================
 router.get("/", protect, getNotifications);
 
-// Mark one notification as read
-router.put("/:id/read", protect, markAsRead);
-
-// Mark all notifications as read
+// ===============================
+// MARK ALL AS READ (must be before /:id routes)
+// ===============================
 router.put("/read-all", protect, markAllAsRead);
 
-// Delete one notification
-router.delete("/:id", protect, deleteNotification);
+// ===============================
+// MARK SINGLE AS READ
+// ===============================
+router.put("/:id/read", protect, markAsRead);
 
-// Delete all notifications
+// ===============================
+// DELETE ALL (must be before /:id)
+// ===============================
 router.delete("/", protect, deleteAllNotifications);
+
+// ===============================
+// DELETE SINGLE
+// ===============================
+router.delete("/:id", protect, deleteNotification);
 
 // ===============================
 // SEND TRANSFER FEE NOTIFICATION
 // ===============================
 router.post("/transfer-fee", protect, async (req, res) => {
-  const { userId, amount, recipientName } = req.body;
+  const { amount, recipientName } = req.body;
 
-  if (!userId || !amount || !recipientName) {
+  if (!amount || !recipientName) {
     return res.status(400).json({
       success: false,
-      message: "userId, amount, and recipientName are required",
+      message: "amount and recipientName are required",
     });
   }
 
   try {
     const notification = await sendTransferFeeNotification({
-      user: req.user,
+      user: req.user, // logged-in user
       amount,
       recipientName,
     });

@@ -11,7 +11,7 @@ const {
 // SEND MESSAGE
 router.post("/", protect, sendMessage);
 
-// GET CHAT HISTORY
+// GET CHAT
 router.get("/", protect, getMessages);
 
 // MARK MESSAGES AS READ

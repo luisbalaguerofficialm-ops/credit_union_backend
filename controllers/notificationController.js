@@ -7,13 +7,26 @@ const { sendEmail, sendSMS } = require("../utils/notify");
 // ===============================
 exports.getNotifications = async (req, res) => {
   try {
-    const notifications = await Notification.find({
+    const { category, unread } = req.query;
+
+    const filter = { user: req.user.id };
+
+    if (category) filter.category = category;
+    if (unread === "true") filter.read = false;
+
+    const notifications = await Notification.find(filter).sort({
+      createdAt: -1,
+    });
+
+    const unreadCount = await Notification.countDocuments({
       user: req.user.id,
-    }).sort({ createdAt: -1 });
+      read: false,
+    });
 
     res.status(200).json({
       success: true,
       count: notifications.length,
+      unreadCount,
       notifications,
     });
   } catch (err) {
@@ -26,30 +39,35 @@ exports.getNotifications = async (req, res) => {
 };
 
 // ===============================
-// CREATE NEW NOTIFICATION + OPTIONAL EMAIL/SMS
+// CREATE NEW NOTIFICATION
 // ===============================
 exports.createNotification = async ({
   userId,
   title,
   message,
+  category = "system", // default category
   email,
   phone,
+  metadata = null,
 }) => {
   try {
     const notification = await Notification.create({
       user: userId,
       title,
       message,
+      category,
       read: false,
+      metadata,
     });
 
-    // Emit real-time dashboard update
-    const io = global.io || null; // you can pass io from app if needed
+    // Real-time update
+    const io = global.io || null;
     if (io) io.to(userId.toString()).emit("new-notification", notification);
 
-    // Send email and SMS if provided
+    // Optional email + SMS
     if (email)
       await sendEmail({ to: email, subject: title, html: `<p>${message}</p>` });
+
     if (phone) await sendSMS({ to: phone, message });
 
     return notification;
@@ -60,7 +78,7 @@ exports.createNotification = async ({
 };
 
 // ===============================
-// MARK SINGLE NOTIFICATION AS READ
+// MARK SINGLE AS READ
 // ===============================
 exports.markAsRead = async (req, res) => {
   try {
@@ -69,57 +87,65 @@ exports.markAsRead = async (req, res) => {
     const notification = await Notification.findOneAndUpdate(
       { _id: id, user: req.user.id },
       { read: true },
-      { new: true }
+      { new: true },
     );
 
     if (!notification) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Notification not found" });
+      return res.status(404).json({
+        success: false,
+        message: "Notification not found",
+      });
     }
 
     const io = req.app.get("io");
     await emitDashboardUpdate(io, req.user.id);
-    io.to(req.user.id.toString()).emit("notification-read", {
-      notificationId: id,
-    });
+
+    if (io) {
+      io.to(req.user.id.toString()).emit("notification-read", {
+        notificationId: id,
+      });
+    }
 
     res.status(200).json({ success: true, notification });
   } catch (err) {
     console.error("Mark As Read Error:", err);
-    res
-      .status(500)
-      .json({ success: false, message: "Failed to update notification" });
+    res.status(500).json({
+      success: false,
+      message: "Failed to update notification",
+    });
   }
 };
 
 // ===============================
-// MARK ALL USER NOTIFICATIONS AS READ
+// MARK ALL AS READ
 // ===============================
 exports.markAllAsRead = async (req, res) => {
   try {
     await Notification.updateMany(
       { user: req.user.id, read: false },
-      { read: true }
+      { read: true },
     );
 
     const io = req.app.get("io");
     await emitDashboardUpdate(io, req.user.id);
-    io.to(req.user.id.toString()).emit("notifications-cleared");
 
-    res
-      .status(200)
-      .json({ success: true, message: "All notifications marked as read" });
+    if (io) io.to(req.user.id.toString()).emit("notifications-cleared");
+
+    res.status(200).json({
+      success: true,
+      message: "All notifications marked as read",
+    });
   } catch (err) {
     console.error("Mark All As Read Error:", err);
-    res
-      .status(500)
-      .json({ success: false, message: "Failed to update notifications" });
+    res.status(500).json({
+      success: false,
+      message: "Failed to update notifications",
+    });
   }
 };
 
 // ===============================
-// DELETE SINGLE NOTIFICATION
+// DELETE SINGLE
 // ===============================
 exports.deleteNotification = async (req, res) => {
   try {
@@ -130,28 +156,36 @@ exports.deleteNotification = async (req, res) => {
       user: req.user.id,
     });
 
-    if (!deleted)
-      return res
-        .status(404)
-        .json({ success: false, message: "Notification not found" });
+    if (!deleted) {
+      return res.status(404).json({
+        success: false,
+        message: "Notification not found",
+      });
+    }
 
     const io = req.app.get("io");
     await emitDashboardUpdate(io, req.user.id);
-    io.to(req.user.id.toString()).emit("notification-deleted", {
-      notificationId: id,
-    });
 
-    res.status(200).json({ success: true, message: "Notification deleted" });
+    if (io)
+      io.to(req.user.id.toString()).emit("notification-deleted", {
+        notificationId: id,
+      });
+
+    res.status(200).json({
+      success: true,
+      message: "Notification deleted",
+    });
   } catch (err) {
     console.error("Delete Notification Error:", err);
-    res
-      .status(500)
-      .json({ success: false, message: "Failed to delete notification" });
+    res.status(500).json({
+      success: false,
+      message: "Failed to delete notification",
+    });
   }
 };
 
 // ===============================
-// DELETE ALL USER NOTIFICATIONS
+// DELETE ALL
 // ===============================
 exports.deleteAllNotifications = async (req, res) => {
   try {
@@ -159,16 +193,19 @@ exports.deleteAllNotifications = async (req, res) => {
 
     const io = req.app.get("io");
     await emitDashboardUpdate(io, req.user.id);
-    io.to(req.user.id.toString()).emit("notifications-deleted-all");
 
-    res
-      .status(200)
-      .json({ success: true, message: "All notifications deleted" });
+    if (io) io.to(req.user.id.toString()).emit("notifications-deleted-all");
+
+    res.status(200).json({
+      success: true,
+      message: "All notifications deleted",
+    });
   } catch (err) {
     console.error("Delete All Notifications Error:", err);
-    res
-      .status(500)
-      .json({ success: false, message: "Failed to delete notifications" });
+    res.status(500).json({
+      success: false,
+      message: "Failed to delete notifications",
+    });
   }
 };
 
@@ -181,32 +218,33 @@ exports.sendTransferFeeNotification = async ({
   recipientName,
 }) => {
   try {
-    // 1️⃣ Send Email + SMS
-    const emailMessage = `
-      <h2>Transfer Fee Required</h2>
-      <p>A transfer of $${amount.toLocaleString()} to ${recipientName} requires a transfer fee.</p>
-      <p>The fee cannot be deducted from your available balance. Please contact your bank branch to pay the fee.</p>
-    `;
-    const smsMessage = `A transfer of $${amount.toLocaleString()} to ${recipientName} requires a transfer fee. Fee cannot be deducted from your balance. Contact your bank branch.`;
+    const formattedAmount = amount.toLocaleString();
 
+    const message = `A transfer of $${formattedAmount} to ${recipientName} requires a transfer fee. Fee cannot be deducted from your balance.`;
+
+    // Email + SMS
     if (user.email)
       await sendEmail({
         to: user.email,
         subject: "Transfer Fee Required",
-        html: emailMessage,
+        html: `<p>${message}</p>`,
       });
-    if (user.phone) await sendSMS({ to: user.phone, message: smsMessage });
 
-    // 2️⃣ Create Dashboard Notification
+    if (user.phone) await sendSMS({ to: user.phone, message });
+
+    // Dashboard notification (uses VALID category)
     const notification = await Notification.create({
       user: user._id,
       title: "Transfer Fee Required",
-      message: `A transfer of $${amount.toLocaleString()} to ${recipientName} requires a transfer fee. Fee cannot be deducted from your balance.`,
-      type: "transfer_fee",
-      read: false,
+      message,
+      category: "transaction", // ✅ valid enum now
+      metadata: {
+        amount,
+        recipientName,
+        type: "transfer_fee",
+      },
     });
 
-    // 3️⃣ Emit real-time update via socket
     const io = global.io || null;
     if (io) io.to(user._id.toString()).emit("new-notification", notification);
 
