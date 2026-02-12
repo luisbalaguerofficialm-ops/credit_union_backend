@@ -14,6 +14,10 @@ const KycSchema = new mongoose.Schema(
       default: "pending",
     },
 
+    idFront: { type: String, required: true },
+    idBack: { type: String, required: true },
+    selfie: { type: String, required: true },
+
     idType: {
       type: String,
       enum: ["passport", "drivers_license", "national_id"],

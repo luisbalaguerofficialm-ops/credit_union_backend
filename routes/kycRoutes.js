@@ -10,7 +10,7 @@ router.post(
   "/submit",
   protect,
   upload.fields([
-    { name: "idDocument", maxCount: 1 },
+    { name: "idDocumentFront", maxCount: 1 },
     { name: "idDocumentBack", maxCount: 1 },
     { name: "selfie", maxCount: 1 },
   ]),
