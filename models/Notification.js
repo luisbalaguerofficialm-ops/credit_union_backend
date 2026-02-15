@@ -21,6 +21,7 @@ const NotificationSchema = new mongoose.Schema(
     type: {
       type: String,
       enum: ["transaction", "security", "kyc", "system"],
+      required: true,
       index: true,
     },
 
@@ -52,7 +53,7 @@ const NotificationSchema = new mongoose.Schema(
 );
 
 // Keep type and category synchronized automatically
-NotificationSchema.pre("save", function (next) {
+NotificationSchema.pre("save", function () {
   if (!this.type && this.category) {
     this.type = this.category;
   }
@@ -60,8 +61,6 @@ NotificationSchema.pre("save", function (next) {
   if (!this.category && this.type) {
     this.category = this.type;
   }
-
-  next();
 });
 
 module.exports = mongoose.model("Notification", NotificationSchema);

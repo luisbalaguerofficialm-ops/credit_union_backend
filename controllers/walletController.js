@@ -16,7 +16,7 @@ exports.getWalletBalance = async (req, res) => {
       wallet = await Wallet.create({
         user: req.user._id,
         balance: 500000000, // initial available balance
-        currency: "$",
+        currency: wallet.currency || "USD", // default to USD if somehow currency is missing
       });
     }
 

@@ -89,35 +89,6 @@ exports.createTransaction = async (req, res) => {
     }
 
     // ===============================
-    // CHECK IF FIRST TRANSFER
-    // ===============================
-    const previousTransfersCount = await Transaction.countDocuments({
-      user: user._id,
-      type: "Transfer",
-    });
-
-    const isFirstTransfer = previousTransfersCount === 0;
-
-    // ===============================
-    // BLOCK IF NOT FIRST & KYC NOT APPROVED
-    // ===============================
-    if (!isFirstTransfer && user.kycStatus !== "approved") {
-      await Notification.create({
-        user: user._id,
-        title: "KYC Required",
-        message:
-          "Your first transfer was successful. Please complete KYC to continue making transfers.",
-        type: "kyc",
-      });
-
-      return res.status(403).json({
-        success: false,
-        message:
-          "KYC verification required. Please complete KYC to continue transfers.",
-      });
-    }
-
-    // ===============================
     // DEDUCT WALLET
     // ===============================
     wallet.balance -= parsedAmount;
@@ -154,6 +125,7 @@ exports.createTransaction = async (req, res) => {
       title: "Transfer Initiated",
       message: `You sent $${parsedAmount.toLocaleString()} to ${recipientName}. Status: Pending.`,
       type: "transaction",
+      category: "transaction",
     });
 
     // ===============================
@@ -166,7 +138,7 @@ exports.createTransaction = async (req, res) => {
       type: "Transfer",
       amount: parsedAmount,
       balance: wallet.balance,
-      currency: "$",
+      currency: wallet.currency,
     });
 
     // ===============================
@@ -181,7 +153,7 @@ exports.createTransaction = async (req, res) => {
           ? `${user.firstName} ${user.lastName}`
           : user.email,
       amount: parsedAmount,
-      currency: "$",
+      currency: wallet.currency,
       transactionId: transaction.transactionId,
     });
 
@@ -203,7 +175,7 @@ exports.createTransaction = async (req, res) => {
         phone: user.phone,
         amount: transferFeeAmount,
         recipientName,
-        currency: "$",
+        currency: wallet.currency,
       });
 
       console.log("✅ Transfer fee alert attempt finished for:", user.email);
@@ -215,11 +187,10 @@ exports.createTransaction = async (req, res) => {
       );
     }
 
+    // ===============================
     res.status(201).json({
       success: true,
-      message: isFirstTransfer
-        ? "First transfer successful. KYC will be required for future transfers."
-        : "Transfer initiated successfully",
+      message: "Transfer initiated successfully",
       transaction,
     });
   } catch (err) {
