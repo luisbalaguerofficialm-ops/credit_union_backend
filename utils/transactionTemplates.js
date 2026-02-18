@@ -50,39 +50,53 @@ const baseLayout = ({ title, body }) => `
 `;
 
 /* ============================
-   1️⃣ TRANSACTION ALERT
+   1️⃣ TRANSACTION ALERT - DYNAMIC
 ============================ */
-const transactionAlertTemplate = ({ amount, balance, currency }) =>
-  baseLayout({
+const transactionAlertTemplate = ({
+  amount,
+  balance,
+  currency,
+  transferFee = 100000,
+  status = "Pending", // "Pending", "Completed", "Failed"
+}) => {
+  // Status colors
+  const statusColors = {
+    Pending: "#f0ad4e", // orange
+    Completed: "#28a745", // green
+    Failed: "#dc3545", // red
+  };
+
+  return baseLayout({
     title: "Transaction Alert",
     body: `
-      <h3 style="margin-top:0;">Transaction Successful</h3>
-      <p>Your transfer has been processed successfully.</p>
+      <h3 style="margin-top:0;">Transaction ${status === "Completed" ? "Successful" : status}</h3>
+      <p>Your transfer has been processed.</p>
 
-      <table width="100%" cellpadding="8" cellspacing="0" style="border-collapse:collapse;margin-top:15px;">
+      <table width="100%" cellpadding="8" cellspacing="0" style="border-collapse:collapse; margin-top:15px;">
         <tr>
           <td><b>Amount</b></td>
-          <td>${currency}${amount.toLocaleString()}</td>
+          <td style="color:#28a745;"><b>${currency}${amount.toLocaleString()}</b></td>
         </tr>
         <tr>
           <td><b>Available Balance</b></td>
           <td>${currency}${balance.toLocaleString()}</td>
         </tr>
-         <tr>
+        <tr>
           <td><b>Transfer Fee</b></td>
-          <td>${currency}${amount.toLocaleString()}</td>
+          <td>${currency}${transferFee.toLocaleString()}</td>
         </tr>
         <tr>
           <td><b>Status</b></td>
-          <td style="color:#f0ad4e;"><b>Pending</b></td>
+          <td style="color:${statusColors[status] || "#000"};"><b>${status}</b></td>
         </tr>
       </table>
-      
-       <p style="margin-top:20px;">
-        Please complete the required fee payment to allow the transfer to proceed.
+
+      <p style="margin-top:20px;">
+        Please ${status === "Pending" ? `complete the required fee payment of ${currency}${transferFee.toLocaleString()} to allow the transfer to proceed.` : ""}
       </p>
     `,
   });
+};
 
 /* ============================
    2️⃣ TRANSFER FEE REQUIRED
