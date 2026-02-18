@@ -3,6 +3,7 @@ const Transaction = require("../models/Transaction");
 const Notification = require("../models/Notification");
 const Session = require("../models/Session");
 const Wallet = require("../models/Wallet");
+const { uploadToCloudinary } = require("../utils/cloudinary");
 
 /* ===============================
    GET USER PROFILE (NEW)
@@ -129,6 +130,36 @@ exports.logoutAllOtherSessions = async (req, res) => {
     success: true,
     message: "Other sessions logged out",
   });
+};
+
+exports.updateProfileImage = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        message: "Please upload an image",
+      });
+    }
+
+    // Use your helper function
+    const uploadedImage = await uploadToCloudinary(req.file, "profile_images");
+
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      { profileImage: uploadedImage.secure_url },
+      { new: true },
+    ).select("-password");
+
+    res.status(200).json({
+      success: true,
+      message: "Profile image updated successfully",
+      user,
+    });
+  } catch (error) {
+    console.error("UPLOAD ERROR:", error);
+    res.status(500).json({
+      message: "Server error while uploading image",
+    });
+  }
 };
 
 // exports.completeProfile = async (req, res) => {

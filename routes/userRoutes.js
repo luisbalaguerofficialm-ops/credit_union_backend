@@ -1,7 +1,8 @@
 // routes/userRoutes.js
 const express = require("express");
 const router = express.Router();
-const { protect } = require("../middlewares/authMiddleware"); // ✅ protects routes
+const { protect } = require("../middlewares/authMiddleware");
+const upload = require("../middlewares/upload");
 
 const {
   getUserProfile,
@@ -9,6 +10,7 @@ const {
   getActiveSessions,
   logoutSession,
   logoutAllOtherSessions,
+  updateProfileImage,
 } = require("../controllers/userController");
 
 // -----------------------------
@@ -27,5 +29,15 @@ router.get("/dashboard", protect, getDashboard);
 router.get("/sessions", protect, getActiveSessions);
 router.post("/sessions/logout", protect, logoutSession);
 router.post("/sessions/logout-others", protect, logoutAllOtherSessions);
+
+// -----------------------------
+// PROFILE IMAGE UPDATE
+// -----------------------------
+router.put(
+  "/update-profile-image",
+  protect,
+  upload.single("profileImage"),
+  updateProfileImage,
+);
 
 module.exports = router;

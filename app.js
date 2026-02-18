@@ -131,6 +131,7 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api", FundsRoutes);
 app.use("/api/pin", pinRoutes);
+app.use("/uploads", express.static("uploads"));
 
 /* ==============================
    404 HANDLER

@@ -77,6 +77,11 @@ const UserSchema = new mongoose.Schema(
       type: Date,
     },
 
+    profileImage: {
+      type: String,
+      default: "",
+    },
+
     country: {
       type: String,
     },
