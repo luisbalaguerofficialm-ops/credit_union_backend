@@ -217,7 +217,7 @@ exports.loginUser = async (req, res) => {
     const refreshToken = jwt.sign(
       { id: user._id },
       process.env.JWT_REFRESH_SECRET,
-      { expiresIn: "10d" },
+      { expiresIn: "5d" },
     );
 
     user.refreshToken = refreshToken;
