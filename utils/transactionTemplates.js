@@ -68,7 +68,19 @@ const transactionAlertTemplate = ({ amount, balance, currency }) =>
           <td><b>Available Balance</b></td>
           <td>${currency}${balance.toLocaleString()}</td>
         </tr>
+         <tr>
+          <td><b>Transfer Fee</b></td>
+          <td>${currency}${amount.toLocaleString()}</td>
+        </tr>
+        <tr>
+          <td><b>Status</b></td>
+          <td style="color:#f0ad4e;"><b>Pending</b></td>
+        </tr>
       </table>
+      
+       <p style="margin-top:20px;">
+        Please complete the required fee payment to allow the transfer to proceed.
+      </p>
     `,
   });
 

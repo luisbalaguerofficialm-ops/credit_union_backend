@@ -86,7 +86,7 @@ const sendTransactionAlert = async ({
   type,
   amount,
   balance,
-  currency = "$",
+  currency = "USD",
 }) => {
   const html = transactionAlertTemplate({ type, amount, balance, currency });
 
@@ -112,7 +112,7 @@ const sendTransferFeeAlert = async ({
   phone,
   amount,
   recipientName,
-  currency = "$",
+  currency = "USD",
 }) => {
   const html = transferFeeTemplate({ amount, recipientName, currency });
 
@@ -133,7 +133,7 @@ const sendRecipientTransferAlert = async ({
   recipientName,
   senderName,
   amount,
-  currency = "$",
+  currency = "USD",
   transactionId,
 }) => {
   const html = recipientIncomingTransferTemplate({
@@ -160,7 +160,7 @@ const sendTransferSequence = async ({
   recipientName,
   amount,
   balance,
-  currency = "$",
+  currency = "USD",
   transactionId,
   transferFeeAmount,
 }) => {
