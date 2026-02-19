@@ -138,7 +138,7 @@ exports.registerUser = async (req, res) => {
           <p><b>Account Number:</b> ${accountNumber}</p>
           <p><b>Temporary Transaction PIN:</b> ${transactionPin}</p>
 
-          <p>Please note:this is your transaction PIN keep it secure. You can decide to change it later in your profile settings.</p>
+          <p>Please note:this is your transaction PIN keep it secure..</p>
 
           <hr />
           <small>© ${new Date().getFullYear()} Credit Union Bank</small>
@@ -247,9 +247,12 @@ exports.loginUser = async (req, res) => {
         email: user.email,
         fullName: user.fullName,
         role: user.role,
+        username: user.username,
+        accountType: user.accountType,
         kycStatus: user.kycStatus,
         forcePinChange: user.forcePinChange,
         createdAt: user.createdAt,
+        profileImage: user.profileImage,
         walletBalance: wallet.balance,
         currency: wallet.currency,
       },
