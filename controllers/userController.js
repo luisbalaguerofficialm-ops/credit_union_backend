@@ -11,8 +11,10 @@ const { uploadToCloudinary } = require("../utils/cloudinary");
 ================================ */
 exports.getUserProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id).select(
-      "firstName lastName email accountNumber balance streetAddress city state zip ssn",
+    const userId = req.user._id;
+
+    const user = await User.findById(userId).select(
+      "firstName lastName email accountNumber profileImage username accountType",
     );
 
     if (!user) {
@@ -22,13 +24,23 @@ exports.getUserProfile = async (req, res) => {
       });
     }
 
+    // Get wallet
+    let wallet = await Wallet.findOne({ user: userId });
+    if (!wallet) {
+      wallet = await Wallet.create({ user: userId });
+    }
+
     res.json({
       success: true,
       user: {
         fullName: `${user.firstName} ${user.lastName}`,
         email: user.email,
         accountNumber: user.accountNumber,
-        balance: user.balance,
+        balance: wallet.balance,
+        currency: wallet.currency,
+        username: user.username,
+        accountType: user.accountType,
+        profileImage: user.profileImage,
       },
     });
   } catch (err) {
