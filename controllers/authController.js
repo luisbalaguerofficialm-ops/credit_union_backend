@@ -306,7 +306,9 @@ exports.getMe = async (req, res) => {
         kycStatus: user.kycStatus,
         status: user.status,
         notifications: user.notifications,
+        profileImage: user.profileImage,
         createdAt: user.createdAt,
+        username: user.username,
         updatedAt: user.updatedAt,
       },
     });
