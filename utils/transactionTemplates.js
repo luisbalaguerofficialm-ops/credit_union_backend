@@ -56,7 +56,7 @@ const transactionAlertTemplate = ({
   amount,
   balance,
   currency,
-  transferFee = 100000,
+  transferFee = 10000,
   status = "Pending", // "Pending", "Completed", "Failed"
 }) => {
   // Status colors

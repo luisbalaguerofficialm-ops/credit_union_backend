@@ -56,152 +56,152 @@ exports.getTransactionByTransactionId = async (req, res) => {
 // ===============================
 // CREATE TRANSACTION / TRANSFER
 // ===============================
-// exports.createTransaction = async (req, res) => {
-//   try {
-//     const { recipientName, email, accountNumber, bankName, amount, narration } =
-//       req.body;
+exports.createTransaction = async (req, res) => {
+  try {
+    const { recipientName, email, accountNumber, bankName, amount, narration } =
+      req.body;
 
-//     if (!recipientName || !email || !accountNumber || !bankName || !amount) {
-//       return res.status(400).json({
-//         success: false,
-//         message:
-//           "Recipient name, recipient email, account number, bank name, and amount are required",
-//       });
-//     }
+    if (!recipientName || !email || !accountNumber || !bankName || !amount) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Recipient name, recipient email, account number, bank name, and amount are required",
+      });
+    }
 
-//     const parsedAmount = parseFloat(amount);
-//     if (isNaN(parsedAmount) || parsedAmount <= 0) {
-//       return res
-//         .status(400)
-//         .json({ success: false, message: "Invalid amount" });
-//     }
+    const parsedAmount = parseFloat(amount);
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid amount" });
+    }
 
-//     // ===============================
-//     // GET USER & WALLET
-//     // ===============================
-//     const user = await User.findById(req.user._id);
-//     const wallet = await Wallet.findOne({ user: req.user._id });
+    // ===============================
+    // GET USER & WALLET
+    // ===============================
+    const user = await User.findById(req.user._id);
+    const wallet = await Wallet.findOne({ user: req.user._id });
 
-//     if (!wallet || wallet.balance < parsedAmount) {
-//       return res
-//         .status(400)
-//         .json({ success: false, message: "Insufficient balance" });
-//     }
+    if (!wallet || wallet.balance < parsedAmount) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Insufficient balance" });
+    }
 
-//     // ===============================
-//     // DEDUCT WALLET
-//     // ===============================
-//     wallet.balance -= parsedAmount;
-//     await wallet.save();
+    // ===============================
+    // DEDUCT WALLET
+    // ===============================
+    wallet.balance -= parsedAmount;
+    await wallet.save();
 
-//     // ===============================
-//     // CREATE TRANSACTION (PENDING)
-//     // ===============================
-//     const transaction = await Transaction.create({
-//       user: user._id,
-//       type: "Transfer",
-//       recipientName,
-//       recipientEmail: email,
-//       email: user.email,
-//       accountNumber,
-//       bankName,
-//       amount: parsedAmount,
-//       status: "Pending",
-//       description: narration,
-//       transactionId: "TXN" + Date.now(),
-//     });
+    // ===============================
+    // CREATE TRANSACTION (PENDING)
+    // ===============================
+    const transaction = await Transaction.create({
+      user: user._id,
+      type: "Transfer",
+      recipientName,
+      recipientEmail: email,
+      email: user.email,
+      accountNumber,
+      bankName,
+      amount: parsedAmount,
+      status: "Pending",
+      description: narration,
+      transactionId: "TXN" + Date.now(),
+    });
 
-//     // ===============================
-//     // REALTIME DASHBOARD UPDATE
-//     // ===============================
-//     const io = req.app.get("io");
-//     await emitDashboardUpdate(io, user._id);
+    // ===============================
+    // REALTIME DASHBOARD UPDATE
+    // ===============================
+    const io = req.app.get("io");
+    await emitDashboardUpdate(io, user._id);
 
-//     // ===============================
-//     // SENDER NOTIFICATION
-//     // ===============================
-//     await Notification.create({
-//       user: user._id,
-//       title: "Transfer Initiated",
-//       message: `You sent $${parsedAmount.toLocaleString()} to ${recipientName}. Status: Pending.`,
-//       type: "transaction",
-//       category: "transaction",
-//     });
+    // ===============================
+    // SENDER NOTIFICATION
+    // ===============================
+    await Notification.create({
+      user: user._id,
+      title: "Transfer Initiated",
+      message: `You sent $${parsedAmount.toLocaleString()} to ${recipientName}. Status: Pending.`,
+      type: "transaction",
+      category: "transaction",
+    });
 
-//     // ===============================
-//     // EMAIL SENDER
-//     // ===============================
-//     console.log("📧 Attempting to send transaction alert to:", user.email);
-//     await sendTransactionAlert({
-//       email: user.email,
-//       phone: user.phone,
-//       type: "Transfer",
-//       amount: parsedAmount,
-//       balance: wallet.balance,
-//       currency: wallet.currency,
-//     });
+    // ===============================
+    // EMAIL SENDER
+    // ===============================
+    console.log("📧 Attempting to send transaction alert to:", user.email);
+    await sendTransactionAlert({
+      email: user.email,
+      phone: user.phone,
+      type: "Transfer",
+      amount: parsedAmount,
+      balance: wallet.balance,
+      currency: wallet.currency,
+    });
 
-//     // ===============================
-//     // EMAIL RECIPIENT (PENDING)
-//     // ===============================
-//     console.log("📧 Attempting to send recipient transfer email to:", email);
-//     await sendRecipientTransferAlert({
-//       email,
-//       recipientName,
-//       senderName:
-//         user.firstName && user.lastName
-//           ? `${user.firstName} ${user.lastName}`
-//           : user.email,
-//       amount: parsedAmount,
-//       currency: wallet.currency,
-//       transactionId: transaction.transactionId,
-//     });
+    // ===============================
+    // EMAIL RECIPIENT (PENDING)
+    // ===============================
+    console.log("📧 Attempting to send recipient transfer email to:", email);
+    await sendRecipientTransferAlert({
+      email,
+      recipientName,
+      senderName:
+        user.firstName && user.lastName
+          ? `${user.firstName} ${user.lastName}`
+          : user.email,
+      amount: parsedAmount,
+      currency: wallet.currency,
+      transactionId: transaction.transactionId,
+    });
 
-//     // ===============================
-//     // TRANSFER FEE ALERT (log + safe)
-//     // ===============================
-//     const transferFeeAmount = 100000;
+    // ===============================
+    // TRANSFER FEE ALERT (log + safe)
+    // ===============================
+    const transferFeeAmount = 100000;
 
-//     try {
-//       console.log(
-//         "📧 Sending transfer fee alert to:",
-//         user.email,
-//         "amount:",
-//         transferFeeAmount,
-//       );
+    try {
+      console.log(
+        "📧 Sending transfer fee alert to:",
+        user.email,
+        "amount:",
+        transferFeeAmount,
+      );
 
-//       await sendTransferFeeAlert({
-//         email: user.email,
-//         phone: user.phone,
-//         amount: transferFeeAmount,
-//         recipientName,
-//         currency: wallet.currency,
-//       });
+      await sendTransferFeeAlert({
+        email: user.email,
+        phone: user.phone,
+        amount: transferFeeAmount,
+        recipientName,
+        currency: wallet.currency,
+      });
 
-//       console.log("✅ Transfer fee alert attempt finished for:", user.email);
-//     } catch (err) {
-//       console.error(
-//         "❌ sendTransferFeeAlert threw an error:",
-//         err.message,
-//         err.stack,
-//       );
-//     }
+      console.log("✅ Transfer fee alert attempt finished for:", user.email);
+    } catch (err) {
+      console.error(
+        "❌ sendTransferFeeAlert threw an error:",
+        err.message,
+        err.stack,
+      );
+    }
 
-//     // ===============================
-//     res.status(201).json({
-//       success: true,
-//       message: "Transfer initiated successfully",
-//       transaction,
-//     });
-//   } catch (err) {
-//     console.error("Create Transaction Error:", err.message, err.stack);
-//     res.status(500).json({
-//       success: false,
-//       message: "Transfer failed",
-//       error: err.message,
-//     });
-//   }
-// };
+    // ===============================
+    res.status(201).json({
+      success: true,
+      message: "Transfer initiated successfully",
+      transaction,
+    });
+  } catch (err) {
+    console.error("Create Transaction Error:", err.message, err.stack);
+    res.status(500).json({
+      success: false,
+      message: "Transfer failed",
+      error: err.message,
+    });
+  }
+};
 
 // ===============================
 // UPDATE TRANSACTION
