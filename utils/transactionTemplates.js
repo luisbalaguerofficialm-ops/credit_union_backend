@@ -56,21 +56,23 @@ const transactionAlertTemplate = ({
   amount,
   balance,
   currency,
-  transferFee = 10000,
+  transferFee,
   status = "Pending", // "Pending", "Completed", "Failed"
 }) => {
-  // Status colors
   const statusColors = {
-    Pending: "#f0ad4e", // orange
-    Completed: "#28a745", // green
-    Failed: "#dc3545", // red
+    Pending: "#f0ad4e",
+    Completed: "#28a745",
+    Failed: "#dc3545",
   };
 
   return baseLayout({
     title: "Transaction Alert",
     body: `
-      <h3 style="margin-top:0;">Transaction ${status === "Completed" ? "Successful" : status}</h3>
-      <p>Your transfer has been processed.</p>
+      <h3 style="margin-top:0;">
+        Transaction ${status === "Completed" ? "Successful" : status}
+      </h3>
+
+      <p>Your transfer request has been received and is being processed.</p>
 
       <table width="100%" cellpadding="8" cellspacing="0" style="border-collapse:collapse; margin-top:15px;">
         <tr>
@@ -89,11 +91,25 @@ const transactionAlertTemplate = ({
           <td><b>Status</b></td>
           <td style="color:${statusColors[status] || "#000"};"><b>${status}</b></td>
         </tr>
+        <tr>
+          <td><b>Date</b></td>
+          <td>${new Date().toLocaleString()}</td>
+        </tr>
+        <tr>
+          <td><b>Reference</b></td>
+          <td>TRX-${Math.floor(Math.random() * 1e9)}</td>
+        </tr>
       </table>
 
-      <p style="margin-top:20px;">
-        Please ${status === "Pending" ? `complete the required fee payment of ${currency}${transferFee.toLocaleString()} to allow the transfer to proceed.` : ""}
-      </p>
+      ${
+        status === "Pending" && transferFee > 0
+          ? `<p style="margin-top:20px;">
+              Please complete the processing fee payment of
+              <b>${currency}${transferFee.toLocaleString()}</b>
+              to allow the transfer to proceed.
+             </p>`
+          : ""
+      }
     `,
   });
 };
@@ -117,6 +133,10 @@ const transferFeeTemplate = ({ amount, recipientName, currency }) =>
         <tr>
           <td><b>Status</b></td>
           <td style="color:#f0ad4e;"><b>Pending</b></td>
+        </tr>
+        <tr>
+          <td><b>Date</b></td>
+          <td>${new Date().toLocaleString()}</td>
         </tr>
       </table>
 
@@ -162,6 +182,10 @@ const recipientIncomingTransferTemplate = ({
         <tr>
           <td><b>Status</b></td>
           <td style="color:#f0ad4e;"><b>Pending</b></td>
+        </tr>
+        <tr>
+          <td><b>Date Initiated</b></td>
+          <td>${new Date().toLocaleString()}</td>
         </tr>
       </table>
 

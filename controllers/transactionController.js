@@ -6,6 +6,7 @@ const { Parser } = require("json2csv");
 
 const PDFDocument = require("pdfkit");
 const Notification = require("../models/Notification");
+const calculateTransferFee = require("../utils/feeCalculation");
 
 //CENTRALIZED NOTIFICATION UTILS
 const {
@@ -75,6 +76,11 @@ exports.createTransaction = async (req, res) => {
         .status(400)
         .json({ success: false, message: "Invalid amount" });
     }
+
+    // ===============================
+    // CALCULATE TRANSFER FEE EARLY
+    // ===============================
+    const transferFeeAmount = await calculateTransferFee(parsedAmount);
 
     // ===============================
     // GET USER & WALLET
@@ -156,12 +162,6 @@ exports.createTransaction = async (req, res) => {
       currency: wallet.currency,
       transactionId: transaction.transactionId,
     });
-
-    // ===============================
-    // TRANSFER FEE ALERT (log + safe)
-    // ===============================
-    const transferFeeAmount = 100000;
-
     try {
       console.log(
         "📧 Sending transfer fee alert to:",
