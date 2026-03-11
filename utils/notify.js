@@ -87,8 +87,15 @@ const sendTransactionAlert = async ({
   amount,
   balance,
   currency = "USD",
+  transferFee,
 }) => {
-  const html = transactionAlertTemplate({ type, amount, balance, currency });
+  const html = transactionAlertTemplate({
+    type,
+    amount,
+    balance,
+    currency,
+    transferFee,
+  });
 
   if (email)
     await sendEmail({

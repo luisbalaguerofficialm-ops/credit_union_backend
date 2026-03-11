@@ -7,6 +7,15 @@ const LOGO_URL =
   "https://res.cloudinary.com/dvthnscx7/image/upload/v1768231460/images_p4tgmy.png";
 
 /* ============================
+   SAFE NUMBER FORMATTER
+============================ */
+const formatMoney = (value) => {
+  const num = Number(value);
+  if (isNaN(num)) return "0";
+  return num.toLocaleString();
+};
+
+/* ============================
    BASE EMAIL LAYOUT
 ============================ */
 const baseLayout = ({ title, body }) => `
@@ -50,20 +59,22 @@ const baseLayout = ({ title, body }) => `
 `;
 
 /* ============================
-   1️⃣ TRANSACTION ALERT - DYNAMIC
+   1️⃣ TRANSACTION ALERT
 ============================ */
 const transactionAlertTemplate = ({
   amount,
   balance,
   currency,
   transferFee,
-  status = "Pending", // "Pending", "Completed", "Failed"
+  status = "Pending",
 }) => {
   const statusColors = {
     Pending: "#f0ad4e",
     Completed: "#28a745",
     Failed: "#dc3545",
   };
+
+  const showFeeRow = transferFee !== undefined && transferFee !== null;
 
   return baseLayout({
     title: "Transaction Alert",
@@ -77,47 +88,51 @@ const transactionAlertTemplate = ({
       <table width="100%" cellpadding="8" cellspacing="0" style="border-collapse:collapse; margin-top:15px;">
         <tr>
           <td><b>Amount</b></td>
-          <td style="color:#28a745;"><b>${currency}${amount.toLocaleString()}</b></td>
+          <td style="color:#28a745;"><b>${currency}${formatMoney(amount)}</b></td>
         </tr>
+
         <tr>
           <td><b>Available Balance</b></td>
-          <td>${currency}${balance.toLocaleString()}</td>
+          <td>${currency}${formatMoney(balance)}</td>
         </tr>
+
+        ${
+          showFeeRow
+            ? `
         <tr>
           <td><b>Transfer Fee</b></td>
-          <td>${currency}${transferFee.toLocaleString()}</td>
+          <td>${currency}${formatMoney(transferFee)}</td>
         </tr>
+        `
+            : ""
+        }
+
         <tr>
           <td><b>Status</b></td>
           <td style="color:${statusColors[status] || "#000"};"><b>${status}</b></td>
         </tr>
+
         <tr>
           <td><b>Date</b></td>
           <td>${new Date().toLocaleString()}</td>
         </tr>
+
         <tr>
           <td><b>Reference</b></td>
           <td>TRX-${Math.floor(Math.random() * 1e9)}</td>
         </tr>
       </table>
-
-      ${
-        status === "Pending" && transferFee > 0
-          ? `<p style="margin-top:20px;">
-              Please complete the processing fee payment of
-              <b>${currency}${transferFee.toLocaleString()}</b>
-              to allow the transfer to proceed.
-             </p>`
-          : ""
-      }
     `,
   });
 };
-
 /* ============================
    2️⃣ TRANSFER FEE REQUIRED
 ============================ */
-const transferFeeTemplate = ({ amount, recipientName, currency }) =>
+const transferFeeTemplate = ({
+  amount = 0,
+  recipientName = "Customer",
+  currency = "$",
+}) =>
   baseLayout({
     title: "Transfer Fee Required",
     body: `
@@ -128,7 +143,7 @@ const transferFeeTemplate = ({ amount, recipientName, currency }) =>
       <table width="100%" cellpadding="8" cellspacing="0" style="border-collapse:collapse;margin-top:15px;">
         <tr>
           <td><b>Transfer Fee</b></td>
-          <td>${currency}${amount.toLocaleString()}</td>
+          <td>${currency}${formatMoney(amount)}</td>
         </tr>
         <tr>
           <td><b>Status</b></td>
@@ -150,11 +165,11 @@ const transferFeeTemplate = ({ amount, recipientName, currency }) =>
    3️⃣ RECIPIENT INCOMING TRANSFER
 ============================ */
 const recipientIncomingTransferTemplate = ({
-  recipientName,
-  senderName,
-  amount,
-  currency,
-  transactionId,
+  recipientName = "Customer",
+  senderName = "Sender",
+  amount = 0,
+  currency = "$",
+  transactionId = "N/A",
 }) =>
   baseLayout({
     title: "Incoming Transfer (Pending)",
@@ -163,7 +178,7 @@ const recipientIncomingTransferTemplate = ({
         Incoming Transfer Notification
       </h3>
 
-      <p>Hello ${recipientName || "Customer"},</p>
+      <p>Hello ${recipientName},</p>
 
       <p>
         You have been listed as the recipient of a transfer from
@@ -173,7 +188,7 @@ const recipientIncomingTransferTemplate = ({
       <table width="100%" cellpadding="8" cellspacing="0" style="margin-top:15px;border-collapse:collapse;">
         <tr>
           <td><b>Amount</b></td>
-          <td>${currency}${amount.toLocaleString()}</td>
+          <td>${currency}${formatMoney(amount)}</td>
         </tr>
         <tr>
           <td><b>Transaction ID</b></td>
@@ -198,9 +213,6 @@ const recipientIncomingTransferTemplate = ({
     `,
   });
 
-/* ============================
-   EXPORT ALL TEMPLATES
-============================ */
 module.exports = {
   transactionAlertTemplate,
   transferFeeTemplate,

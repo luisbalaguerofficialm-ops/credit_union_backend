@@ -6,7 +6,7 @@ const { Parser } = require("json2csv");
 
 const PDFDocument = require("pdfkit");
 const Notification = require("../models/Notification");
-const calculateTransferFee = require("../utils/feeCalculation");
+const { calculateTransferFee } = require("../utils/feeCalculation");
 
 //CENTRALIZED NOTIFICATION UTILS
 const {
@@ -80,7 +80,8 @@ exports.createTransaction = async (req, res) => {
     // ===============================
     // CALCULATE TRANSFER FEE EARLY
     // ===============================
-    const transferFeeAmount = await calculateTransferFee(parsedAmount);
+    const feeData = await calculateTransferFee(parsedAmount);
+    const transferFeeAmount = feeData.fee;
 
     // ===============================
     // GET USER & WALLET
@@ -145,6 +146,7 @@ exports.createTransaction = async (req, res) => {
       amount: parsedAmount,
       balance: wallet.balance,
       currency: wallet.currency,
+      transferFee: transferFeeAmount,
     });
 
     // ===============================
