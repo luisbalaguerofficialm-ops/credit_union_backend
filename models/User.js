@@ -88,29 +88,6 @@ const UserSchema = new mongoose.Schema(
 
     kycSelfie: String,
 
-    // state: {
-    //   type: String,
-    // },
-
-    // city: {
-    //   type: String,
-    // },
-
-    // streetAddress: {
-    //   type: String,
-    // },
-
-    // zip: {
-    //   type: String,
-    //   match: /^[0-9]{5,6}$/,
-    // },
-
-    // ssn: {
-    //   type: String,
-    //   select: false,
-    //   match: /^[0-9]{3}-[0-9]{2}-[0-9]{4}$/,
-    // },
-
     // =============================
     // KYC STATUS
     // =============================
@@ -167,7 +144,18 @@ const UserSchema = new mongoose.Schema(
       },
     ],
   },
-  { timestamps: true },
+  {
+    timestamps: true,
+    toJSON: { virtuals: true }, // include virtuals in JSON
+    toObject: { virtuals: true }, // include virtuals in objects
+  },
 );
+
+// =============================
+// VIRTUAL FIELDS
+// =============================
+UserSchema.virtual("fullName").get(function () {
+  return `${this.firstName} ${this.lastName}`;
+});
 
 module.exports = mongoose.model("User", UserSchema);
