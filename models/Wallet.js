@@ -10,7 +10,7 @@ const WalletSchema = new mongoose.Schema(
     },
     balance: {
       type: Number,
-      default: 500000000,
+      default: 0,
       min: 0,
     },
     currency: {
