@@ -10,7 +10,6 @@ const emitDashboardUpdate = require("../utils/emitDashboardUpdate");
  */
 exports.requestBankFunding = async (req, res) => {
   try {
-    const userId = req.user._id;
     const { amount } = req.body;
 
     if (!amount || Number(amount) <= 0) {
@@ -20,13 +19,23 @@ exports.requestBankFunding = async (req, res) => {
       });
     }
 
+    // Safely pick a name from user object
+    const userFullName =
+      (req.user.firstName && req.user.lastName
+        ? `${req.user.firstName} ${req.user.lastName}`
+        : req.user.name) ||
+      req.user.username ||
+      "Unknown User";
+
     const request = await FundingRequest.create({
-      user: userId,
+      user: req.user._id,
+      userName: req.user.username || userFullName, // required field in schema
+      userEmail: req.user.email,
       amount: Number(amount),
       status: "pending",
     });
 
-    // Optionally emit real-time update to admin dashboard
+    // emit real-time update
     const io = req.app.get("io");
     if (io) {
       io.to("admin-room").emit("funding-request:new", request);
@@ -39,7 +48,10 @@ exports.requestBankFunding = async (req, res) => {
     });
   } catch (error) {
     console.error("Request Funding Error:", error);
-    res.status(500).json({ success: false, message: "Server error" });
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
   }
 };
 
@@ -50,9 +62,7 @@ exports.requestBankFunding = async (req, res) => {
  */
 exports.getMyFundingRequests = async (req, res) => {
   try {
-    const userId = req.user._id;
-
-    const requests = await FundingRequest.find({ user: userId }).sort({
+    const requests = await FundingRequest.find({ user: req.user._id }).sort({
       createdAt: -1,
     });
 
@@ -62,6 +72,9 @@ exports.getMyFundingRequests = async (req, res) => {
     });
   } catch (error) {
     console.error("Get My Funding Requests Error:", error);
-    res.status(500).json({ success: false, message: "Server error" });
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
   }
 };
