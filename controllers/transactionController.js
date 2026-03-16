@@ -77,15 +77,15 @@ exports.createTransaction = async (req, res) => {
         .json({ success: false, message: "Invalid amount" });
     }
 
-    // ===============================
-    // MINIMUM TRANSFER VALIDATION
-    // ===============================
-    if (parsedAmount < 2500) {
-      return res.status(400).json({
-        success: false,
-      message: `for now you can only tranfer ${wallet.currency} 2,500 and above,  `
-      });
-    }
+    // // ===============================
+    // // MINIMUM TRANSFER VALIDATION
+    // // ===============================
+    // if (parsedAmount < 2500) {
+    //   return res.status(400).json({
+    //     success: false,
+    //   message: `for now you can only tranfer ${wallet.currency} 2,500 and above,  `
+    //   });
+    // }
 
     // ===============================
     // CALCULATE TRANSFER FEE EARLY
