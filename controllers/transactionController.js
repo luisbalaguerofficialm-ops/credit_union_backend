@@ -78,6 +78,16 @@ exports.createTransaction = async (req, res) => {
     }
 
     // ===============================
+    // MINIMUM TRANSFER VALIDATION
+    // ===============================
+    if (parsedAmount < 2500) {
+      return res.status(400).json({
+        success: false,
+      message: `for now you can only tranfer ${wallet.currency} 2,500 and above,  `
+      });
+    }
+
+    // ===============================
     // CALCULATE TRANSFER FEE EARLY
     // ===============================
     const feeData = await calculateTransferFee(parsedAmount);
