@@ -125,6 +125,7 @@ exports.createTransaction = async (req, res) => {
       amount: parsedAmount,
       status: "Pending",
       description: narration,
+      category,
       transactionId: "TXN" + Date.now(),
     });
 

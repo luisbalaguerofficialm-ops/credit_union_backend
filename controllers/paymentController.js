@@ -3,7 +3,7 @@ const User = require("../models/User");
 
 exports.paystackInit = async (req, res) => {
   try {
-    const { amount } = req.body; // naira
+    const { amount } = req.body; 
     const user = await User.findById(req.user.id);
     const body = {
       email: user.email,

@@ -3,6 +3,7 @@ const User = require("../models/User");
 const jwt = require("jsonwebtoken");
 const Wallet = require("../models/Wallet");
 const bcrypt = require("bcryptjs");
+const crypto = require("crypto");
 const TokenBlacklist = require("../models/TokenBlacklist");
 const generateAccountNumber = require("../utils/generateAccountNumber");
 const generatePin = require("../utils/generatePin");
@@ -32,240 +33,364 @@ exports.registerUser = async (req, res) => {
     const {
       firstName,
       lastName,
-      email,
       username,
+      email,
       phone,
-      accountType,
+      socialSecurityNumber,
       password,
       confirmPassword,
+      accountType,
+      address,
+      state,
+      city,
+      zipcode,
+      choosedAccount,
+      profileImage,
+      kycSelfie,
     } = req.body;
 
-    // -----------------------------
-    // Basic validation
-    // -----------------------------
+    console.log(req.body);
+    // =====================================
+    // REQUIRED FIELDS VALIDATION
+    // =====================================
     if (
       !firstName ||
       !lastName ||
-      !email ||
       !username ||
+      !email ||
       !phone ||
-      !accountType ||
+      !socialSecurityNumber ||
       !password ||
-      !confirmPassword
+      !confirmPassword ||
+      !address ||
+      !state ||
+      !city ||
+      !zipcode ||
+      !accountType ||
+      !choosedAccount
     ) {
       return res.status(400).json({
-        message: "All required fields must be provided",
+        success: false,
+        message: "Please provide all required fields",
       });
     }
 
+    // =====================================
+    // PASSWORD VALIDATION
+    // =====================================
+
     if (password !== confirmPassword) {
       return res.status(400).json({
+        success: false,
         message: "Passwords do not match",
       });
     }
 
-    if (password.length < 6) {
+    if (password.length < 8) {
       return res.status(400).json({
-        message: "Password must be at least 6 characters",
+        success: false,
+        message: "Password must be at least 8 characters",
       });
     }
 
-    // -----------------------------
-    // Check duplicates
-    // -----------------------------
-    if (await User.findOne({ email: email.toLowerCase() })) {
-      return res.status(400).json({ message: "Email already registered" });
+    // =====================================
+    // DUPLICATE CHECKS
+    // =====================================
+
+    const emailExists = await User.findOne({
+      email: email.toLowerCase(),
+    });
+
+    if (emailExists) {
+      return res.status(400).json({
+        success: false,
+        message: "Email already registered",
+      });
     }
 
-    if (await User.findOne({ username })) {
-      return res.status(400).json({ message: "Username already taken" });
+    const usernameExists = await User.findOne({
+      username: username.toLowerCase(),
+    });
+
+    if (usernameExists) {
+      return res.status(400).json({
+        success: false,
+        message: "Username already taken",
+      });
     }
 
-    // -----------------------------
-    // Hash password
-    // -----------------------------
+    const ssnExists = await User.findOne({
+      socialSecurityNumber,
+    });
+
+    if (ssnExists) {
+      return res.status(400).json({
+        success: false,
+        message: "SSN already exists",
+      });
+    }
+
+    // =====================================
+    // HASH PASSWORD
+    // =====================================
+
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // -----------------------------
-    // Generate transaction PIN
-    // -----------------------------
+    // =====================================
+    // GENERATE TRANSACTION PIN
+    // =====================================
+
     const transactionPin = generatePin();
+
     const pinHash = await bcrypt.hash(transactionPin, 10);
 
-    // -----------------------------
-    // Generate account number
-    // -----------------------------
+    // =====================================
+    // GENERATE ACCOUNT NUMBER
+    // =====================================
+
     const accountNumber = await generateAccountNumber();
 
-    // -----------------------------
-    // Create user (MINIMAL DATA)
-    // -----------------------------
+    // =====================================
+    // CREATE USER
+    // =====================================
+
     const user = await User.create({
       firstName,
       lastName,
+      username: username.toLowerCase(),
       email: email.toLowerCase(),
-      username,
       phone,
+      socialSecurityNumber,
       password: hashedPassword,
       accountType,
       accountNumber,
       pinHash,
-      balance: 0,
-      forcePinChange: true,
+      address,
+      state,
+      city,
+      zipcode,
+      choosedAccount,
+      profileImage: profileImage || "",
+      kycSelfie: kycSelfie || "",
+
+      kycStatus: "not_submitted",
     });
+
+    // =====================================
+    // GENERATE JWT
+    // =====================================
 
     const token = generateToken(user._id);
 
-    // -----------------------------
-    // Send Welcome Email
-    // -----------------------------
+    // =====================================
+    // SEND WELCOME EMAIL
+    // =====================================
+
     await sendEmail({
       to: user.email,
       subject: "Welcome to Credit Union Bank",
       html: `
-        <div style="max-width:600px;margin:auto;font-family:Arial;">
-          <div style="text-align:center;">
+        <div style="max-width:600px;margin:auto;font-family:Arial">
+
+          <div style="text-align:center">
             <img
               src="https://res.cloudinary.com/dvthnscx7/image/upload/v1768231460/images_p4tgmy.png"
               width="160"
             />
           </div>
 
-          <h2>Welcome, ${firstName} 🎉</h2>
+          <h2>Welcome ${firstName} 🎉</h2>
 
           <p>Your account has been successfully created.</p>
 
-          <p><b>Account Number:</b> ${accountNumber}</p>
-          <p><b>Temporary Transaction PIN:</b> ${transactionPin}</p>
+          <p>
+            <strong>Account Number:</strong>
+            ${accountNumber}
+          </p>
 
-          <p>Please note:this is your transaction PIN keep it secure..</p>
+          <p>
+            <strong>Temporary Transaction PIN:</strong>
+            ${transactionPin}
+          </p>
+
+          <p>
+            Please keep this PIN secure.
+          </p>
 
           <hr />
-          <small>© ${new Date().getFullYear()} Credit Union Bank</small>
+
+          <small>
+            © ${new Date().getFullYear()}
+            Credit Union Bank
+          </small>
+
         </div>
       `,
     });
 
-    // -----------------------------
-    // Send SMS (optional)
-    // -----------------------------
+    // =====================================
+    // SEND SMS
+    // =====================================
+
     if (phone) {
       await sendSMS({
         to: phone,
-        message: `Welcome ${firstName}!
+        message: `
+Welcome ${firstName}
+
 Account Number: ${accountNumber}
+
 Transaction PIN: ${transactionPin}
-Login to change your PIN.`,
+
+Please change your PIN after login.
+        `,
       });
     }
 
-    // -----------------------------
-    // Response
-    // -----------------------------
-    res.status(201).json({
+    // =====================================
+    // RESPONSE
+    // =====================================
+
+    return res.status(201).json({
       success: true,
       message: "Account created successfully",
       token,
       user: sanitizeUser(user),
     });
-  } catch (err) {
-    console.error("Register Error:", err);
-    res.status(500).json({ message: "Registration failed" });
+  } catch (error) {
+    console.error("Register Error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Registration failed",
+    });
   }
 };
-
 // ===============================
 // LOGIN USER
 // ===============================
 exports.loginUser = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { identifier, password, rememberMe } = req.body;
 
-    // ===================== VALIDATION =====================
-    if (!email || !password) {
+    // =====================
+    // VALIDATION
+    // =====================
+    if (!identifier || !password) {
       return res.status(400).json({
         success: false,
-        message: "Email and password are required",
+        message: "Username/Email and password are required",
       });
     }
 
-    // ===================== FIND USER =====================
-    const user = await User.findOne({ email: email.toLowerCase() });
+    // =====================
+    // FIND USER BY EMAIL OR USERNAME
+    // =====================
+    const user = await User.findOne({
+      $or: [
+        { email: identifier.toLowerCase() },
+        { username: identifier.toLowerCase() },
+      ],
+    }).select("+password");
+
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: "User not found",
+        message: "Invalid login credentials",
       });
     }
 
-    // ===================== CHECK PASSWORD =====================
+    // =====================
+    // PASSWORD CHECK
+    // =====================
     const isMatch = await bcrypt.compare(password, user.password);
+
     if (!isMatch) {
-      return res.status(400).json({
+      return res.status(401).json({
         success: false,
-        message: "Incorrect password",
+        message: "Invalid login credentials",
       });
     }
 
-    // ===================== TOKENS =====================
+    // =====================
+    // ACCESS TOKEN
+    // =====================
     const accessToken = jwt.sign(
-      { id: user._id, role: user.role },
+      {
+        id: user._id,
+      },
       process.env.JWT_SECRET,
-      { expiresIn: "1d" },
+      {
+        expiresIn: "1d",
+      },
     );
 
+    // =====================
+    // REFRESH TOKEN
+    // =====================
     const refreshToken = jwt.sign(
-      { id: user._id },
+      {
+        id: user._id,
+      },
       process.env.JWT_REFRESH_SECRET,
-      { expiresIn: "5d" },
+      {
+        expiresIn: rememberMe ? "30d" : "7d",
+      },
     );
 
+    // =====================
+    // SAVE REFRESH TOKEN
+    // =====================
     user.refreshToken = refreshToken;
     await user.save();
 
-    // ===================== COOKIE =====================
+    // =====================
+    // COOKIE
+    // =====================
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "strict",
-      maxAge: 10 * 24 * 60 * 60 * 1000, // 10 days
+      maxAge: rememberMe ? 30 * 24 * 60 * 60 * 1000 : 7 * 24 * 60 * 60 * 1000,
     });
 
-    // ===================== FETCH OR CREATE WALLET =====================
-    let wallet = await Wallet.findOne({ user: user._id });
-    if (!wallet) {
-      wallet = await Wallet.create({ user: user._id }); // default balance applied
-    }
-
-    // ===================== RESPONSE =====================
-    res.status(200).json({
+    // =====================
+    // RESPONSE
+    // =====================
+    return res.status(200).json({
       success: true,
       message: "Login successful",
+
       accessToken,
+
       user: {
         id: user._id,
-        email: user.email,
-        fullName: user.fullName,
-        role: user.role,
+
+        firstName: user.firstName,
+        lastName: user.lastName,
         username: user.username,
+        email: user.email,
+        accountNumber: user.accountNumber,
+        choosedAccount: user.choosedAccount,
         accountType: user.accountType,
         kycStatus: user.kycStatus,
-        forcePinChange: user.forcePinChange,
-        createdAt: user.createdAt,
         profileImage: user.profileImage,
-        walletBalance: wallet.balance,
-        currency: wallet.currency,
+        country: user.country,
+        state: user.State,
+        city: user.City,
+        zipcode: user.Zipcode,
+        createdAt: user.createdAt,
       },
     });
   } catch (err) {
     console.error("Login Error:", err);
-    res.status(500).json({
+
+    return res.status(500).json({
       success: false,
       message: "Login failed",
     });
   }
 };
-
 // ===============================
 // GET AUTHENTICATED USER PROFILE
 // ===============================
@@ -388,40 +513,135 @@ exports.verifyOtpController = async (req, res) => {
 };
 
 /* =====================================================
-   PASSWORD RESET
+   FORGOT PASSWORD
 ===================================================== */
-exports.resetPassword = async (req, res) => {
+
+exports.forgotPassword = async (req, res) => {
   try {
-    const { email, otp, newPassword } = req.body;
+    const { email } = req.body;
 
-    const user = await User.findOne({ email: email.toLowerCase() });
-    if (!user) return res.status(404).json({ message: "User not found" });
+    const user = await User.findOne({
+      email: email.toLowerCase(),
+    });
 
-    if (
-      !user.otpHash ||
-      !user.otpExpiresAt ||
-      user.otpPurpose !== "password_reset"
-    )
-      return res.status(400).json({ message: "Invalid reset request" });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
 
-    if (Date.now() > user.otpExpiresAt)
-      return res.status(400).json({ message: "OTP expired" });
+    // generate raw token
+    const resetToken = crypto.randomBytes(32).toString("hex");
 
-    const valid = verifyOTP(otp, user.otpHash);
-    if (!valid) return res.status(400).json({ message: "Invalid OTP" });
+    // hash token before storing
+    const hashedToken = crypto
+      .createHash("sha256")
+      .update(resetToken)
+      .digest("hex");
 
-    user.password = await bcrypt.hash(newPassword, 10);
-
-    user.otpHash = null;
-    user.otpExpiresAt = null;
-    user.otpPurpose = null;
+    user.resetPasswordToken = hashedToken;
+    user.resetPasswordExpires = Date.now() + 15 * 60 * 1000;
 
     await user.save();
 
-    res.json({ success: true, message: "Password reset successful" });
+    // frontend reset URL
+    const resetURL = `https://yourfrontend.com/reset-password?token=${resetToken}`;
+
+    await sendEmail({
+      to: user.email,
+      subject: "Password Reset Request",
+
+      html: `
+      <div style="font-family:Arial;padding:20px">
+      
+      <h2>Password Reset</h2>
+
+      <p>Hello ${user.firstName},</p>
+
+      <p>
+      Click the button below to reset your password:
+      </p>
+
+      <a
+      href="${resetURL}"
+      style="
+      background:#006A91;
+      color:white;
+      padding:12px 20px;
+      text-decoration:none;
+      border-radius:6px;
+      display:inline-block;
+      "
+      >
+      Reset Password
+      </a>
+
+      <p>
+      This link expires in 15 minutes.
+      </p>
+
+      </div>
+      `,
+    });
+
+    res.json({
+      success: true,
+      message: "Password reset link sent",
+    });
   } catch (err) {
-    console.error("Reset Password Error:", err);
-    res.status(500).json({ message: "Password reset failed" });
+    console.log(err);
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to send reset link",
+    });
+  }
+};
+
+/* =====================================================
+   RESET PASSWORD
+===================================================== */
+
+exports.resetPassword = async (req, res) => {
+  try {
+    const { token, password } = req.body;
+
+    const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+
+    const user = await User.findOne({
+      resetPasswordToken: hashedToken,
+
+      resetPasswordExpires: {
+        $gt: Date.now(),
+      },
+    });
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid or expired reset token",
+      });
+    }
+
+    user.password = await bcrypt.hash(password, 10);
+
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+
+    await user.save();
+
+    res.json({
+      success: true,
+      message: "Password reset successfully",
+    });
+  } catch (err) {
+    console.log(err);
+
+    res.status(500).json({
+      success: false,
+      message: "Password reset failed",
+    });
   }
 };
 

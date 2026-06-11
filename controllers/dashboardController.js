@@ -3,14 +3,22 @@ const Wallet = require("../models/Wallet");
 const Transaction = require("../models/Transaction");
 
 exports.getDashboardData = async (req, res) => {
+  console.log("GET DASHBOARD CONTROLLER HIT");
   try {
     const userId = req.user._id;
 
-    // ===============================
-    // FETCH USER
-    // ===============================
+    // ==========================================
+    // USER
+    // ==========================================
     const user = await User.findById(userId).select(
-      "firstName lastName email accountNumber kycStatus notifications",
+      `
+      firstName
+      lastName
+      email
+      accountNumber
+      choosedAccount
+      notifications
+      `,
     );
 
     if (!user) {
@@ -20,60 +28,81 @@ exports.getDashboardData = async (req, res) => {
       });
     }
 
-    // ===============================
-    // FETCH OR CREATE WALLET
-    // ===============================
+    // ==========================================
+    // WALLET
+    // ==========================================
     let wallet = await Wallet.findOne({ user: userId });
 
     if (!wallet) {
       wallet = await Wallet.create({
         user: userId,
         balance: 0,
-        currency: "USD", // ISO currency only
+        currency: "USD",
       });
     }
 
-    // HARD GUARD AGAINST INVALID CURRENCY
-    const safeCurrency =
-      typeof wallet.currency === "string" && wallet.currency.length === 3
-        ? wallet.currency
-        : "USD";
-
-    // ===============================
-    // FETCH TRANSACTIONS
-    // ===============================
-    const transactions = await Transaction.find({ user: userId })
+    // ==========================================
+    // RECENT TRANSACTIONS
+    // ==========================================
+    const transactions = await Transaction.find({
+      user: userId,
+    })
       .sort({ createdAt: -1 })
-      .limit(15);
+      .limit(5);
 
-    // ===============================
-    // RESPONSE (MATCHES FRONTEND)
-    // ===============================
+    // ==========================================
+    // FORMAT TRANSACTIONS FOR FRONTEND
+    // ==========================================
+    const formattedTransactions = transactions.map((tx) => ({
+      id: tx._id,
+      title: tx.description,
+      date: tx.createdAt,
+      category: tx.category,
+      type: tx.type,
+      amount: tx.amount,
+      status: tx.status,
+      createdAt: tx.createdAt,
+      isNegative:
+        tx.type === "withdrawal" ||
+        tx.type === "transfer" ||
+        tx.type === "payment",
+    }));
+
+    // ==========================================
+    // RESPONSE
+    // ==========================================
     res.status(200).json({
       success: true,
 
-      user: {
-        _id: user._id,
-        fullName: `${user.firstName} ${user.lastName}`,
-        email: user.email,
-        accountNumber: user.accountNumber,
-        kycStatus: user.kycStatus,
-      },
+      dashboard: {
+        greetingName: user.firstName,
 
-      balance: {
-        balance: wallet.balance,
-        currency: safeCurrency,
-        accountNumber: user.accountNumber,
-      },
+        account: {
+          accountNumber: user.accountNumber,
+          choosedAccount: user.choosedAccount,
+          balance: wallet.balance,
+          currency: wallet.currency || "USD",
+        },
 
-      transactions,
-      notifications: user.notifications || [],
+        profile: {
+          id: user._id,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          fullName: `${user.firstName} ${user.lastName}`,
+          email: user.email,
+        },
+
+        notifications: user.notifications || [],
+
+        recentTransactions: formattedTransactions,
+      },
     });
   } catch (err) {
-    console.error("Dashboard fetch error:", err);
+    console.error("Dashboard Error:", err);
+
     res.status(500).json({
       success: false,
-      message: "Dashboard fetch failed",
+      message: "Failed to load dashboard",
     });
   }
 };

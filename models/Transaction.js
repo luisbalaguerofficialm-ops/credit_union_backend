@@ -6,7 +6,7 @@ const TransactionSchema = new mongoose.Schema(
 
     type: {
       type: String,
-      enum: ["Transfer", "Deposit", "Withdrawal"],
+      enum: ["Transfer", "Deposit", "Withdrawal", "Purchase", "Subscription"],
       required: true,
     },
 
@@ -27,6 +27,24 @@ const TransactionSchema = new mongoose.Schema(
       type: String,
       enum: ["Pending", "Successful", "Failed"],
       default: "Pending",
+    },
+
+    category: {
+      type: String,
+      enum: ["Groceries", "Income", "Utilities", "Dining Out", "Entertainment"],
+    },
+
+    DateRange: {
+      type: String,
+      enum: [
+        "Last Month",
+        "Last Yeah",
+        "Last Two Weeks",
+        "Last 30 Days",
+        "Last 90 Days",
+        "Last Week",
+        "This Year",
+      ],
     },
 
     description: { type: String },

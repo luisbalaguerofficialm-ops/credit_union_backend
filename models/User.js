@@ -33,6 +33,24 @@ const UserSchema = new mongoose.Schema(
       trim: true,
     },
 
+    socialSecurityNumber: {
+      type: Number,
+      required: true,
+      trim: true,
+      unique: true,
+    },
+
+    choosedAccount: {
+      type: String,
+      enum: ["Essential Checking", "High-Yield Savings"],
+      trim: true,
+    },
+
+    phone: {
+      type: String,
+      default: false,
+    },
+
     password: {
       type: String,
       required: true,
@@ -51,6 +69,7 @@ const UserSchema = new mongoose.Schema(
     refreshToken: {
       type: String,
       default: null,
+      select: false,
     },
 
     firstTransferCompleted: {
@@ -84,32 +103,26 @@ const UserSchema = new mongoose.Schema(
 
     country: {
       type: String,
+      trim: true,
     },
 
-    kycSelfie: String,
+    kycSelfie: {
+      type: String,
+      default: "",
+    },
+    state: {
+      type: String,
+      required: true,
+    },
 
-    // state: {
-    //   type: String,
-    // },
-
-    // city: {
-    //   type: String,
-    // },
-
-    // streetAddress: {
-    //   type: String,
-    // },
-
-    // zip: {
-    //   type: String,
-    //   match: /^[0-9]{5,6}$/,
-    // },
-
-    // ssn: {
-    //   type: String,
-    //   select: false,
-    //   match: /^[0-9]{3}-[0-9]{2}-[0-9]{4}$/,
-    // },
+    city: {
+      type: String,
+      trim: true,
+      required: true,
+    },
+    zipcode: {
+      type: Number,
+    },
 
     // =============================
     // KYC STATUS
@@ -139,16 +152,33 @@ const UserSchema = new mongoose.Schema(
     },
 
     // =============================
-    // NOTIFICATIONS & MESSAGES
+    // PASSWORD RESET
+    // =============================
+
+    resetPasswordToken: {
+      type: String,
+      select: false,
+    },
+
+    resetPasswordExpires: {
+      type: Date,
+      select: false,
+    },
+
+    // =============================
+    // NOTIFICATIONS
     // =============================
     notifications: [
       {
         title: String,
+
         message: String,
+
         type: {
           type: String,
           enum: ["Success", "Warning", "Info"],
         },
+
         date: {
           type: Date,
           default: Date.now,
@@ -156,10 +186,15 @@ const UserSchema = new mongoose.Schema(
       },
     ],
 
+    // =============================
+    // MESSAGES
+    // =============================
     messages: [
       {
         sender: String,
+
         message: String,
+
         date: {
           type: Date,
           default: Date.now,
@@ -167,7 +202,9 @@ const UserSchema = new mongoose.Schema(
       },
     ],
   },
-  { timestamps: true },
+  {
+    timestamps: true,
+  },
 );
 
 module.exports = mongoose.model("User", UserSchema);
