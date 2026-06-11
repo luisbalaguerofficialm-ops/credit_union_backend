@@ -9,6 +9,7 @@ const generateAccountNumber = require("../utils/generateAccountNumber");
 const generatePin = require("../utils/generatePin");
 const { generateOTP, hashOTP, verifyOTP } = require("../utils/otp");
 const { sendEmail, sendSMS, sendOTP } = require("../utils/notify");
+const { uploadToCloudinary } = require("../utils/cloudinary");
 
 /* =====================================================
    HELPER FUNCTIONS
@@ -45,11 +46,8 @@ exports.registerUser = async (req, res) => {
       city,
       zipcode,
       choosedAccount,
-      profileImage,
-      kycSelfie,
     } = req.body;
 
-    console.log(req.body);
     // =====================================
     // REQUIRED FIELDS VALIDATION
     // =====================================
@@ -73,6 +71,21 @@ exports.registerUser = async (req, res) => {
         success: false,
         message: "Please provide all required fields",
       });
+    }
+
+    // =====================================
+    // PROFILE IMAGE UPLOAD
+    // =====================================
+
+    let profileImageUrl = "";
+
+    if (req.file) {
+      const uploadedImage = await uploadToCloudinary(
+        req.file,
+        "profile_images",
+      );
+
+      profileImageUrl = uploadedImage.secure_url;
     }
 
     // =====================================
@@ -170,10 +183,7 @@ exports.registerUser = async (req, res) => {
       city,
       zipcode,
       choosedAccount,
-      profileImage: profileImage || "",
-      kycSelfie: kycSelfie || "",
-
-      kycStatus: "not_submitted",
+      profileImage: profileImageUrl,
     });
 
     // =====================================
