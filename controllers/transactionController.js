@@ -58,18 +58,52 @@ exports.getTransactionByTransactionId = async (req, res) => {
 // CREATE TRANSACTION / TRANSFER
 // ===============================
 exports.createTransaction = async (req, res) => {
-  try {
-    const { recipientName, email, accountNumber, bankName, amount, narration } =
-      req.body;
 
-    if (!recipientName || !email || !accountNumber || !bankName || !amount) {
+  try {
+    const {
+      recipientName,
+      recipientEmail,
+      accountNumber,
+      bankName,
+      amount,
+      recipientCountry,
+      iban,
+      swiftCode,
+      narration,
+    } = req.body;
+
+    if (
+      !recipientName ||
+      !recipientEmail ||
+      !recipientCountry ||
+      !bankName ||
+      !amount
+    ) {
       return res.status(400).json({
         success: false,
         message:
-          "Recipient name, recipient email, account number, bank name, and amount are required",
+          "Recipient name, recipient email, recipient country, bank name, and amount are required",
       });
     }
 
+    // Validate Account Number OR IBAN
+    // Right now a user can submit neither.
+    if (!accountNumber && !iban) {
+      return res.status(400).json({
+        success: false,
+        message: "Account Number or IBAN is required",
+      });
+    }
+
+    // If an IBAN is provided, require SWIFT for international transfers:
+    if (iban && !swiftCode) {
+      return res.status(400).json({
+        success: false,
+        message: "SWIFT/BIC code is required for international transfers",
+      });
+    }
+
+    // Chect Amount on the Account
     const parsedAmount = parseFloat(amount);
     if (isNaN(parsedAmount) || parsedAmount <= 0) {
       return res
@@ -118,15 +152,17 @@ exports.createTransaction = async (req, res) => {
       user: user._id,
       type: "Transfer",
       recipientName,
-      recipientEmail: email,
-      email: user.email,
+      recipientEmail,
       accountNumber,
+      email: user.email,
       bankName,
+      iban,
+      swiftCode,
+      recipientCountry,
       amount: parsedAmount,
       status: "Pending",
       description: narration,
-      category,
-      transactionId: "TXN" + Date.now(),
+      transactionId: `TXN-${Date.now()}-${Math.floor(Math.random() * 100000)}`,
     });
 
     // ===============================
@@ -163,9 +199,9 @@ exports.createTransaction = async (req, res) => {
     // ===============================
     // EMAIL RECIPIENT (PENDING)
     // ===============================
-    console.log("📧 Attempting to send recipient transfer email to:", email);
+    console.log("📧 Attempting to send recipient transfer email to:",  recipientEmail);
     await sendRecipientTransferAlert({
-      email,
+      email: recipientEmail,
       recipientName,
       senderName:
         user.firstName && user.lastName

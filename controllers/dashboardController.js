@@ -3,7 +3,6 @@ const Wallet = require("../models/Wallet");
 const Transaction = require("../models/Transaction");
 
 exports.getDashboardData = async (req, res) => {
-  console.log("GET DASHBOARD CONTROLLER HIT");
   try {
     const userId = req.user._id;
 
@@ -57,7 +56,6 @@ exports.getDashboardData = async (req, res) => {
       id: tx._id,
       title: tx.description,
       date: tx.createdAt,
-      category: tx.category,
       type: tx.type,
       amount: tx.amount,
       status: tx.status,
@@ -75,7 +73,7 @@ exports.getDashboardData = async (req, res) => {
       success: true,
 
       dashboard: {
-        greetingName: user.firstName,
+        greetingName: user.fullName,
 
         account: {
           accountNumber: user.accountNumber,

@@ -2,7 +2,11 @@ const mongoose = require("mongoose");
 
 const TransactionSchema = new mongoose.Schema(
   {
-    user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
 
     type: {
       type: String,
@@ -10,50 +14,88 @@ const TransactionSchema = new mongoose.Schema(
       required: true,
     },
 
-    recipientName: { type: String, required: true },
-    accountNumber: { type: String, required: true },
-    bankName: { type: String, required: true },
-    email: { type: String, required: true },
-    recipientEmail: {
+    // Recipient Details
+    recipientName: {
       type: String,
       required: true,
-      lowercase: true,
       trim: true,
     },
 
-    amount: { type: Number, required: true },
+    recipientEmail: {
+      type: String,
+      lowercase: true,
+      trim: true,
+      required: true,
+    },
+
+    recipientCountry: {
+      type: String,
+      required: true,
+    },
+
+    bankName: {
+      type: String,
+      required: true,
+    },
+
+    // Domestic Transfers
+    accountNumber: {
+      type: String,
+      default: null,
+    },
+
+    // International Transfers
+    iban: {
+      type: String,
+      default: null,
+      uppercase: true,
+      trim: true,
+    },
+
+    swiftCode: {
+      type: String,
+      default: null,
+      uppercase: true,
+      trim: true,
+    },
+
+    amount: {
+      type: Number,
+      required: true,
+      min: 1,
+    },
+
+    bankCode: String,
+
+    active: {
+      type: Boolean,
+      default: true,
+    },
 
     status: {
       type: String,
-      enum: ["Pending", "Successful", "Failed"],
+      enum: ["Pending", "Processing", "Successful", "Failed"],
       default: "Pending",
     },
 
-    category: {
+    description: String,
+
+    metadata: Object,
+
+    transactionId: {
       type: String,
-      enum: ["Groceries", "Income", "Utilities", "Dining Out", "Entertainment"],
+      unique: true,
+      required: true,
     },
 
-    DateRange: {
-      type: String,
-      enum: [
-        "Last Month",
-        "Last Yeah",
-        "Last Two Weeks",
-        "Last 30 Days",
-        "Last 90 Days",
-        "Last Week",
-        "This Year",
-      ],
+    date: {
+      type: Date,
+      default: Date.now,
     },
-
-    description: { type: String },
-    metadata: { type: Object },
-    transactionId: { type: String, unique: true, required: true },
-
-    date: { type: Date, default: Date.now },
   },
-  { timestamps: true },
+  {
+    timestamps: true,
+  },
 );
 
 module.exports = mongoose.model("Transaction", TransactionSchema);

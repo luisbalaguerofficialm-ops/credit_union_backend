@@ -43,11 +43,12 @@ const UserSchema = new mongoose.Schema(
     choosedAccount: {
       type: String,
       enum: ["Essential Checking", "High-Yield Savings"],
+      required: true,
       trim: true,
     },
 
     phone: {
-      type: String,
+      type: Number,
       default: false,
     },
 

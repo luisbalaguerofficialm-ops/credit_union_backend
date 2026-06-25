@@ -15,7 +15,14 @@ exports.calculateTransferFee = async (amount, type = "Transfer") => {
     });
 
     if (!rule) {
-      throw new Error(`No active fee rule found for type: ${type}`);
+      console.warn(`No active fee rule found for ${type}. Using $0 fee.`);
+
+      return {
+        fee: 0,
+        structure: "None",
+        rule: null,
+        ruleName: "No Fee Rule",
+      };
     }
 
     let fee = 0;
@@ -23,17 +30,18 @@ exports.calculateTransferFee = async (amount, type = "Transfer") => {
     // Calculate based on structure type
     if (rule.structure === "Tiered") {
       // Find matching tier
+
       const matchingTier = rule.tiers.find(
         (tier) => amount >= tier.min && amount < tier.max,
       );
 
+      fee = matchingTier ? matchingTier.fee : 0;
+
       if (!matchingTier) {
-        throw new Error(
-          `Amount $${amount} does not fall within any defined fee tier`,
+        console.warn(
+          `No fee tier found for amount $${amount}. Defaulting fee to $0.`,
         );
       }
-
-      fee = matchingTier.fee;
     } else if (rule.structure === "Fixed") {
       fee = rule.fixedFee;
     } else if (rule.structure === "Percentage") {

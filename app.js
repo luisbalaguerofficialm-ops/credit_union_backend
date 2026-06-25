@@ -89,7 +89,6 @@ const { protect } = require("./middlewares/authMiddleware");
    ROUTES
 ============================== */
 const authRoutes = require("./routes/authRoutes");
-const kycRoutes = require("./routes/kycRoutes");
 const userRoutes = require("./routes/userRoutes");
 const transactionRoutes = require("./routes/transactionRoutes");
 const settingsRoutes = require("./routes/settingsRoutes");
@@ -119,8 +118,6 @@ app.use("/api/auth", authRoutes);
    PROTECTED ROUTES
 ============================== */
 app.use("/api", updateSession, protect);
-
-app.use("/api/kyc", kycRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/transactions", transactionRoutes);
 app.use("/api/settings", settingsRoutes);
