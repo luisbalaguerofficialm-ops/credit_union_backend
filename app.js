@@ -29,7 +29,6 @@ app.use(cookieParser());
 /* ==============================
    SOCKET EVENTS
 ============================== */
-const ChatMessage = require("./models/ChatMessage");
 
 io.on("connection", (socket) => {
   console.log("🔌 Socket.IO client connected:", socket.id);
@@ -93,7 +92,6 @@ const userRoutes = require("./routes/userRoutes");
 const transactionRoutes = require("./routes/transactionRoutes");
 const settingsRoutes = require("./routes/settingsRoutes");
 const walletRoutes = require("./routes/walletRoutes");
-const chatRoutes = require("./routes/chatRoutes");
 const notifyRoutes = require("./routes/notifyRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 const FundsRoutes = require("./routes/FundsRoutes");
@@ -123,7 +121,6 @@ app.use("/api/transactions", transactionRoutes);
 app.use("/api/settings", settingsRoutes);
 app.use("/api/notify", notifyRoutes);
 app.use("/api/wallet", walletRoutes);
-app.use("/api/chat", chatRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api", FundsRoutes);
