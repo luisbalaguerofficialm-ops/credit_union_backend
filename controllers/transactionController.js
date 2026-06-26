@@ -15,50 +15,11 @@ const {
   sendRecipientTransferAlert,
 } = require("../utils/notify");
 
-// ===============================
-// GET ALL TRANSACTIONS
-// ===============================
-exports.getTransactions = async (req, res) => {
-  try {
-    const txns = await Transaction.find({ user: req.user._id }).sort({
-      date: -1,
-    });
-    res.json({ success: true, transactions: txns });
-  } catch (err) {
-    console.error("Get Transactions Error:", err);
-    res.status(500).json({ success: false, message: "Server error" });
-  }
-};
 
-// ===============================
-// GET TRANSACTION BY TRANSACTION ID
-// ===============================
-exports.getTransactionByTransactionId = async (req, res) => {
-  try {
-    const { transactionId } = req.params;
-
-    const transaction = await Transaction.findOne({
-      transactionId,
-      user: req.user._id,
-    });
-
-    if (!transaction) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Transaction not found" });
-    }
-
-    res.json({ success: true, transaction });
-  } catch (err) {
-    console.error("Get Transaction Error:", err);
-    res.status(500).json({ success: false, message: "Server error" });
-  }
-};
 // ===============================
 // CREATE TRANSACTION / TRANSFER
 // ===============================
 exports.createTransaction = async (req, res) => {
-
   try {
     const {
       recipientName,
@@ -199,7 +160,10 @@ exports.createTransaction = async (req, res) => {
     // ===============================
     // EMAIL RECIPIENT (PENDING)
     // ===============================
-    console.log("📧 Attempting to send recipient transfer email to:",  recipientEmail);
+    console.log(
+      "📧 Attempting to send recipient transfer email to:",
+      recipientEmail,
+    );
     await sendRecipientTransferAlert({
       email: recipientEmail,
       recipientName,
@@ -251,6 +215,47 @@ exports.createTransaction = async (req, res) => {
     });
   }
 };
+
+// ===============================
+// GET ALL TRANSACTIONS
+// ===============================
+exports.getTransactions = async (req, res) => {
+  try {
+    const txns = await Transaction.find({ user: req.user._id }).sort({
+      date: -1,
+    });
+    res.json({ success: true, transactions: txns });
+  } catch (err) {
+    console.error("Get Transactions Error:", err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+// / ===============================
+// GET TRANSACTION BY TRANSACTION ID
+// ===============================
+exports.getTransactionByTransactionId = async (req, res) => {
+  try {
+    const { transactionId } = req.params;
+
+    const transaction = await Transaction.findOne({
+      transactionId,
+    });
+
+    if (!transaction) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Transaction not found" });
+    }
+
+    res.json({ success: true, transaction });
+  } catch (err) {
+    console.error("Get Transaction Error:", err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+
 
 // ===============================
 // UPDATE TRANSACTION
