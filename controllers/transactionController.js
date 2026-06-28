@@ -48,7 +48,7 @@ exports.createTransaction = async (req, res) => {
     }
 
     // Validate Account Number OR IBAN
-    // Right now a user can submit neither.
+    // Right now a user can submit neither one of both.
     if (!accountNumber && !iban) {
       return res.status(400).json({
         success: false,
