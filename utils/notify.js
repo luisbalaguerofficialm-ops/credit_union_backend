@@ -12,6 +12,13 @@ const {
   transactionAlertTemplate,
   transferFeeTemplate,
   recipientIncomingTransferTemplate,
+  transactionAlertSMS,
+  transferFeeSMS,
+  recipientIncomingTransferSMS,
+  debitAlertSMS,
+  creditAlertSMS,
+  otpSMS,
+
 } = require("./transactionTemplates");
 
 // ======================================
@@ -73,7 +80,10 @@ const sendOTP = async ({ email, phone, otp }) => {
   if (phone)
     await sendSMS({
       to: phone,
-      message: `Your OTP is ${otp}. Expires in 10 minutes.`,
+      message: otpSMS({
+        otp,
+        expires: 10,
+      }),
     });
 };
 
@@ -107,7 +117,12 @@ const sendTransactionAlert = async ({
   if (phone)
     await sendSMS({
       to: phone,
-      message: `${type}: ${currency}${amount.toLocaleString()} | Bal: ${currency}${balance.toLocaleString()}`,
+      message: transactionAlertSMS({
+        amount,
+        balance,
+        currency,
+        transferFee,
+      }),
     });
 };
 
@@ -128,7 +143,11 @@ const sendTransferFeeAlert = async ({
   if (phone)
     await sendSMS({
       to: phone,
-      message: `Transfer to ${recipientName} requires a ${currency}${amount.toLocaleString()} fee.`,
+      message: transferFeeSMS({
+        recipientName,
+        amount,
+        currency,
+      }),
     });
 };
 
@@ -207,32 +226,81 @@ const sendTransferSequence = async ({
   }
 };
 
-// ======================================
-// KYC STATUS UPDATE
-// ======================================
-const sendKycStatusUpdate = async (email, status) => {
-  const templates = {
-    approved: {
-      subject: "KYC Approved",
-      html: "<p>Your KYC verification has been approved.</p>",
-    },
-    rejected: {
-      subject: "KYC Rejected",
-      html: "<p>Your KYC was rejected. Please re-submit your documents.</p>",
-    },
-    pending: {
-      subject: "KYC Under Review",
-      html: "<p>Your KYC is currently under review.</p>",
-    },
-  };
+// Debit Alert
 
-  if (!templates[status] || !email) return;
-
-  await sendEmail({
-    to: email,
-    subject: templates[status].subject,
-    html: templates[status].html,
+const sendDebitAlert = async ({
+  email,
+  phone,
+  recipientName,
+  merchant,
+  amount,
+  balance,
+  currency = "USD",
+}) => {
+  const html = transactionAlertTemplate({
+    amount,
+    balance,
+    currency,
+    status: "Completed",
   });
+
+  if (email) {
+    await sendEmail({
+      to: email,
+      subject: "Debit Alert",
+      html,
+    });
+  }
+
+  if (phone) {
+    await sendSMS({
+      to: phone,
+      message: debitAlertSMS({
+        recipientName,
+        merchant,
+        amount,
+        balance,
+        currency,
+      }),
+    });
+  }
+};
+
+// Add Credit Alert
+const sendCreditAlert = async ({
+  email,
+  phone,
+  sender,
+  amount,
+  balance,
+  currency = "USD",
+}) => {
+  const html = transactionAlertTemplate({
+    amount,
+    balance,
+    currency,
+    status: "Completed",
+  });
+
+  if (email) {
+    await sendEmail({
+      to: email,
+      subject: "Credit Alert",
+      html,
+    });
+  }
+
+  if (phone) {
+    await sendSMS({
+      to: phone,
+      message: creditAlertSMS({
+        sender,
+        amount,
+        balance,
+        currency,
+      }),
+    });
+  }
 };
 
 // ======================================
@@ -246,5 +314,6 @@ module.exports = {
   sendTransferFeeAlert,
   sendRecipientTransferAlert,
   sendTransferSequence,
-  sendKycStatusUpdate,
+  sendDebitAlert,
+  sendCreditAlert,
 };

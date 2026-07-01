@@ -125,14 +125,30 @@ const UserSchema = new mongoose.Schema(
       type: Number,
     },
 
-    // =============================
-    // KYC STATUS
-    // =============================
-    kycStatus: {
+    address: {
       type: String,
-      enum: ["not_submitted", "pending", "approved", "rejected"],
-      default: "not_submitted",
+      trim: true,
     },
+
+    transactionPin: String,
+
+    pushNotifications: {
+      type: Boolean,
+      default: true,
+    },
+
+    emailNotifications: {
+      type: Boolean,
+      default: true,
+    },
+
+    smsNotifications: {
+      type: Boolean,
+      default: true,
+    },
+    passwordChangedAt: Date,
+
+    pinChangedAt: Date,
 
     // =============================
     // OTP / VERIFICATION

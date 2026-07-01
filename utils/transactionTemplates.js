@@ -213,8 +213,191 @@ const recipientIncomingTransferTemplate = ({
     `,
   });
 
+
+
+
+/* ==================================
+   SMS TEMPLATES
+================================== */
+
+/**
+ * Transaction Alert SMS
+ */
+const transactionAlertSMS = ({
+  amount = 0,
+  balance = 0,
+  currency = "$",
+  status = "Completed", 
+}) => {
+  return `${BANK_NAME}
+
+Transaction ${status}
+
+Amount:
+${currency}${formatMoney(amount)}
+
+Available Balance:
+${currency}${formatMoney(balance)}
+
+Date:
+${new Date().toLocaleString()}
+
+Thank you for banking with us.`;
+};
+
+/**
+ * Transfer Fee SMS
+ */
+const transferFeeSMS = ({ recipientName = "", amount = 0, currency = "$" }) => {
+  return `${BANK_NAME}
+
+Transfer Pending
+
+Recipient:
+${recipientName}
+
+Processing Fee:
+${currency}${formatMoney(amount)}
+
+Please complete the required fee payment to continue.
+
+Thank you.`;
+};
+
+/**
+ * Recipient Incoming Transfer SMS
+ */
+const recipientIncomingTransferSMS = ({
+  recipientName = "",
+  senderName = "",
+  amount = 0,
+  currency = "$",
+  transactionId = "",
+}) => {
+  return `${BANK_NAME}
+
+Incoming Transfer
+
+Hello ${recipientName},
+
+Sender:
+${senderName}
+
+Amount:
+${currency}${formatMoney(amount)}
+
+Reference:
+${transactionId}
+
+Status:
+Pending`;
+};
+
+/**
+ * Transfer Successful SMS
+ */
+const transferSuccessfulSMS = ({
+  recipientName = "",
+  amount = 0,
+  balance = 0,
+  currency = "$",
+}) => {
+  return `${BANK_NAME}
+
+Transfer Successful
+
+Recipient:
+${recipientName}
+
+Amount:
+${currency}${formatMoney(amount)}
+
+Available Balance:
+${currency}${formatMoney(balance)}
+
+Status:
+Completed
+
+Thank you for banking with us.`;
+};
+
+/**
+ * Debit Alert SMS
+ */
+const debitAlertSMS = ({
+  recipientName = "",
+  merchant = "",
+  amount = 0,
+  balance = 0,
+  currency = "$",
+}) => {
+  return `${BANK_NAME}
+
+Debit Alert
+
+Recipient:
+${recipientName}
+
+Merchant:
+${merchant}
+
+Amount:
+${currency}${formatMoney(amount)}
+
+Available Balance:
+${currency}${formatMoney(balance)}
+
+Thank you for banking with us.`;
+};
+
+/**
+ * Credit Alert SMS
+ */
+const creditAlertSMS = ({
+  senderName = "",
+  amount = 0,
+  balance = 0,
+  currency = "$",
+}) => {
+  return `${BANK_NAME}
+
+Credit Alert
+
+From:
+${senderName}
+
+Amount:
+${currency}${formatMoney(amount)}
+
+Available Balance:
+${currency}${formatMoney(balance)}
+
+Thank you for banking with us.`;
+};
+
+/**
+ * OTP SMS
+ */
+const otpSMS = ({ otp = "", expires = 10 }) => {
+  return `${BANK_NAME}
+
+Your verification code is:
+
+${otp}
+
+This code expires in ${expires} minutes.
+
+DO NOT share this code with anyone.`;
+};
+
+
 module.exports = {
   transactionAlertTemplate,
   transferFeeTemplate,
   recipientIncomingTransferTemplate,
+  transactionAlertSMS,
+  transferFeeSMS,
+  recipientIncomingTransferSMS,
+  debitAlertSMS,
+  otpSMS,
 };

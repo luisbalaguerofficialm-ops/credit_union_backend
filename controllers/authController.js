@@ -556,7 +556,7 @@ exports.forgotPassword = async (req, res) => {
     await user.save();
 
     // frontend reset URL
-    const resetURL = `https://yourfrontend.com/reset-password?token=${resetToken}`;
+    const resetURL = `https://credixa.co/reset-password?token=${resetToken}`;
 
     await sendEmail({
       to: user.email,
@@ -757,3 +757,6 @@ exports.refreshToken = async (req, res) => {
     });
   }
 };
+
+
+

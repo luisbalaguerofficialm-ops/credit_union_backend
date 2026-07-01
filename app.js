@@ -80,8 +80,7 @@ app.use(express.json());
 
 /* ==============================
    AUTH MIDDLEWARE
-============================== */
-const updateSession = require("./middlewares/updateSession");
+
 const { protect } = require("./middlewares/authMiddleware");
 
 /* ==============================
@@ -90,7 +89,6 @@ const { protect } = require("./middlewares/authMiddleware");
 const authRoutes = require("./routes/authRoutes");
 const userRoutes = require("./routes/userRoutes");
 const transactionRoutes = require("./routes/transactionRoutes");
-const settingsRoutes = require("./routes/settingsRoutes");
 const walletRoutes = require("./routes/walletRoutes");
 const notifyRoutes = require("./routes/notifyRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
@@ -115,10 +113,9 @@ app.use("/api/auth", authRoutes);
 
    PROTECTED ROUTES
 ============================== */
-app.use("/api", updateSession, protect);
+
 app.use("/api/users", userRoutes);
 app.use("/api/transactions", transactionRoutes);
-app.use("/api/settings", settingsRoutes);
 app.use("/api/notify", notifyRoutes);
 app.use("/api/wallet", walletRoutes);
 app.use("/api/notifications", notificationRoutes);

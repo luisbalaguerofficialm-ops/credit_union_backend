@@ -88,6 +88,7 @@ exports.getDashboardData = async (req, res) => {
           lastName: user.lastName,
           fullName: `${user.firstName} ${user.lastName}`,
           email: user.email,
+          profileImage: profileImageUrl,
         },
 
         notifications: user.notifications || [],

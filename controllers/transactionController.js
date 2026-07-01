@@ -15,7 +15,6 @@ const {
   sendRecipientTransferAlert,
 } = require("../utils/notify");
 
-
 // ===============================
 // CREATE TRANSACTION / TRANSFER
 // ===============================
@@ -116,6 +115,7 @@ exports.createTransaction = async (req, res) => {
       recipientEmail,
       accountNumber,
       email: user.email,
+      phone: user.phone,
       bankName,
       iban,
       swiftCode,
@@ -150,6 +150,20 @@ exports.createTransaction = async (req, res) => {
     await sendTransactionAlert({
       email: user.email,
       phone: user.phone,
+      type: "Transfer",
+      amount: parsedAmount,
+      balance: wallet.balance,
+      currency: wallet.currency,
+      transferFee: transferFeeAmount,
+    });
+
+    // ===============================
+    // SMS SENDER
+    // ===============================
+    console.log("📧 Attempting to send transaction alert to:", user.phone);
+    await sendTransactionAlert({
+      phone: user.phone,
+      recipientName,
       type: "Transfer",
       amount: parsedAmount,
       balance: wallet.balance,
@@ -254,8 +268,6 @@ exports.getTransactionByTransactionId = async (req, res) => {
     res.status(500).json({ success: false, message: "Server error" });
   }
 };
-
-
 
 // ===============================
 // UPDATE TRANSACTION

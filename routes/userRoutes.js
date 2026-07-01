@@ -7,9 +7,12 @@ const upload = require("../middlewares/upload");
 const {
   getUserProfile,
   getDashboard,
-  getActiveSessions,
-  logoutSession,
-  logoutAllOtherSessions,
+  changePassword,
+  changeTransactionPin,
+  updatePreferences,
+  updateProfile,
+  getPreferences,
+  deleteAccount,
   updateProfileImage,
 } = require("../controllers/userController");
 
@@ -24,13 +27,6 @@ router.get("/profile", protect, getUserProfile);
 router.get("/dashboard", protect, getDashboard);
 
 // -----------------------------
-// SESSIONS MANAGEMENT
-// -----------------------------
-router.get("/sessions", protect, getActiveSessions);
-router.post("/sessions/logout", protect, logoutSession);
-router.post("/sessions/logout-others", protect, logoutAllOtherSessions);
-
-// -----------------------------
 // PROFILE IMAGE UPDATE
 // -----------------------------
 router.put(
@@ -39,5 +35,17 @@ router.put(
   upload.single("profileImage"),
   updateProfileImage,
 );
+
+router.put("/update-profile", protect, updateProfile);
+
+router.put("/change-password", protect, changePassword);
+
+router.put("/change-pin", protect, changeTransactionPin);
+
+router.get("/preferences", protect, getPreferences);
+
+router.put("/preferences", protect, updatePreferences);
+
+router.delete("/delete-account", protect, deleteAccount);
 
 module.exports = router;
