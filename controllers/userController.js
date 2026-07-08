@@ -164,7 +164,7 @@ exports.getDashboard = async (req, res) => {
     // ==========================================
     const formattedTransactions = transactions.map((tx) => ({
       id: tx._id,
-      title: tx.narration,
+      description: tx.description,
       date: tx.createdAt,
       type: tx.type,
       amount: tx.amount,
