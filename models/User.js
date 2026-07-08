@@ -165,7 +165,13 @@ const UserSchema = new mongoose.Schema(
 
     otpPurpose: {
       type: String,
-      enum: ["login", "password_reset", "kyc", "email_verify"],
+      enum: [
+        "login",
+        "password_reset",
+        "kyc",
+        "email_verify",
+        "transaction-pin-reset",
+      ],
     },
 
     // =============================
@@ -180,6 +186,11 @@ const UserSchema = new mongoose.Schema(
     resetPasswordExpires: {
       type: Date,
       select: false,
+    },
+
+    transactionPinResetVerified: {
+      type: Boolean,
+      default: false,
     },
 
     // =============================

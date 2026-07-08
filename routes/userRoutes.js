@@ -14,21 +14,15 @@ const {
   getPreferences,
   deleteAccount,
   updateProfileImage,
+  sendTransactionPinOtp,
+  verifyTransactionPinOtp,
+  resetTransactionPin,
 } = require("../controllers/userController");
 
-// -----------------------------
-// USER PROFILE
-// -----------------------------
 router.get("/profile", protect, getUserProfile);
 
-// -----------------------------
-// DASHBOARD
-// -----------------------------
 router.get("/dashboard", protect, getDashboard);
 
-// -----------------------------
-// PROFILE IMAGE UPDATE
-// -----------------------------
 router.put(
   "/update-profile-image",
   protect,
@@ -47,5 +41,11 @@ router.get("/preferences", protect, getPreferences);
 router.put("/preferences", protect, updatePreferences);
 
 router.delete("/delete-account", protect, deleteAccount);
+
+router.post("/transaction-pin/send-otp", sendTransactionPinOtp);
+
+router.post("/transaction-pin/verify-otp", verifyTransactionPinOtp);
+
+router.put("/transaction-pin/reset", protect, resetTransactionPin);
 
 module.exports = router;

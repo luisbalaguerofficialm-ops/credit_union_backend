@@ -164,7 +164,7 @@ exports.getDashboard = async (req, res) => {
     // ==========================================
     const formattedTransactions = transactions.map((tx) => ({
       id: tx._id,
-      title: tx.description,
+      title: tx.narration,
       date: tx.createdAt,
       type: tx.type,
       amount: tx.amount,
@@ -260,7 +260,7 @@ exports.changePassword = async (req, res) => {
 
     await user.save();
 
-    res.json({
+    res.status(200).json({
       success: true,
       message: "Password changed successfully",
     });
@@ -309,7 +309,7 @@ exports.changeTransactionPin = async (req, res) => {
     await user.save();
 
     // =====================================
-    // SEND WELCOME EMAIL
+    // SEND EMAIL
     // =====================================
 
     await sendEmail({
@@ -380,7 +380,7 @@ exports.changeTransactionPin = async (req, res) => {
   `,
     });
 
-    res.json({
+    res.status(200).json({
       success: true,
       message: "Transaction PIN updated",
     });
@@ -390,6 +390,233 @@ exports.changeTransactionPin = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to update PIN",
+    });
+  }
+};
+
+exports.sendTransactionPinOtp = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    const user = await User.findOne({
+      email: email.toLowerCase(),
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    const otp = generateOTP();
+
+    user.otpHash = hashOTP(otp);
+    user.otpExpiresAt = Date.now() + 5 * 60 * 1000;
+    user.otpPurpose = "reset_transaction_pin";
+
+    await user.save();
+
+    await sendOTP({
+      email: user.email,
+      phone: user.phone,
+      otp,
+    });
+
+    res.json({
+      success: true,
+      message: "OTP sent successfully",
+    });
+  } catch (err) {
+    console.log(err);
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to send OTP",
+    });
+  }
+};
+
+exports.verifyTransactionPinOtp = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+
+    const user = await User.findOne({
+      email: email.toLowerCase(),
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    if (user.otpPurpose !== "reset_transaction_pin") {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid OTP request",
+      });
+    }
+
+    if (Date.now() > user.otpExpiresAt) {
+      return res.status(400).json({
+        success: false,
+        message: "OTP expired",
+      });
+    }
+
+    const valid = verifyOTP(otp, user.otpHash);
+
+    if (!valid) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid OTP",
+      });
+    }
+
+    user.transactionPinResetVerified = true;
+
+    user.otpHash = null;
+    user.otpExpiresAt = null;
+    user.otpPurpose = null;
+
+    await user.save();
+
+    res.json({
+      success: true,
+      message: "OTP verified",
+    });
+  } catch (err) {
+    console.log(err);
+
+    res.status(500).json({
+      success: false,
+      message: "Verification failed",
+    });
+  }
+};
+
+exports.resetTransactionPin = async (req, res) => {
+  try {
+    const { newPin, confirmPin } = req.body;
+
+    const user = await User.findById(req.user._id).select("+pinHash");
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    if (!user.transactionPinResetVerified) {
+      return res.status(401).json({
+        success: false,
+        message: "OTP verification required",
+      });
+    }
+
+    if (newPin !== confirmPin) {
+      return res.status(400).json({
+        success: false,
+        message: "PINs do not match",
+      });
+    }
+
+    if (!/^\\d{4}$/.test(newPin)) {
+      return res.status(400).json({
+        success: false,
+        message: "PIN must be exactly 4 digits",
+      });
+    }
+
+    user.pinHash = await bcrypt.hash(newPin, 10);
+
+    user.transactionPinResetVerified = false;
+
+    await user.save();
+
+    await sendEmail({
+      to: user.email,
+      subject: "Transaction PIN has been reset successfully",
+      html: `
+  <div style="max-width:600px;margin:auto;font-family:Arial,sans-serif;background:#fff;border:1px solid #eee;padding:30px">
+
+    <div style="text-align:center;margin-bottom:20px;">
+      <img
+        src="https://res.cloudinary.com/dvthnscx7/image/upload/v1768231460/images_p4tgmy.png"
+        width="150"
+        alt="Credit Union Bank"
+      />
+    </div>
+
+    <h2 style="color:#004B6E;">
+      Hello ${user.firstName} ${user.lastName},
+    </h2>
+
+    <p>
+      Your <strong>Transaction PIN</strong> has been Reset successfully.
+    </p>
+
+    <table style="width:100%;border-collapse:collapse;border:1px solid #ddd;margin:20px 0;">
+      <tr style="background:#f5f5f5;">
+        <td style="padding:10px;"><strong>Account Number</strong></td>
+        <td style="padding:10px;">${user.accountNumber}</td>
+      </tr>
+
+      <tr>
+        <td style="padding:10px;"><strong>New Transaction PIN</strong></td>
+        <td style="padding:10px;font-size:20px;font-weight:bold;color:#0a6cf1;">
+          ${newPin}
+        </td>
+      </tr>
+
+      <tr style="background:#f5f5f5;">
+        <td style="padding:10px;"><strong>Date</strong></td>
+        <td style="padding:10px;">
+          ${new Date().toLocaleString()}
+        </td>
+      </tr>
+
+      <tr>
+        <td style="padding:10px;"><strong>Status</strong></td>
+        <td style="padding:10px;color:green;font-weight:bold;">
+          Successful
+        </td>
+      </tr>
+    </table>
+
+    <p>
+      Please keep your Transaction PIN confidential and never share it with anyone.
+    </p>
+
+    <p style="color:#d32f2f;">
+      If you did not authorize this reset, please contact Credit Union Bank immediately.
+    </p>
+
+    <hr>
+
+    <small>
+      © ${new Date().getFullYear()} Credit Union Bank. All rights reserved.
+    </small>
+
+  </div>
+  `,
+    });
+
+    res.json({
+      success: true,
+
+      message: "Transaction PIN reset successfully",
+    });
+  } catch (err) {
+    console.log(err);
+
+    res.status(500).json({
+      success: false,
+
+      message: "Failed to reset transaction PIN",
     });
   }
 };

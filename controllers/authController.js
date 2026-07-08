@@ -383,7 +383,6 @@ exports.loginUser = async (req, res) => {
         accountNumber: user.accountNumber,
         choosedAccount: user.choosedAccount,
         accountType: user.accountType,
-        kycStatus: user.kycStatus,
         profileImage: user.profileImage,
         country: user.country,
         state: user.State,
