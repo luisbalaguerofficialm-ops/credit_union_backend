@@ -10,6 +10,7 @@ const generatePin = require("../utils/generatePin");
 const { generateOTP, hashOTP, verifyOTP } = require("../utils/otp");
 const { sendEmail, sendSMS, sendOTP } = require("../utils/notify");
 const { uploadToCloudinary } = require("../utils/cloudinary");
+const { createNotification } = require("./notificationController");
 
 /* =====================================================
    HELPER FUNCTIONS
@@ -186,6 +187,17 @@ exports.registerUser = async (req, res) => {
       profileImage: profileImageUrl,
     });
 
+    await createNotification({
+      userId: user._id,
+      title: "Welcome to Credit Union",
+      message:
+        "Your account has been created successfully. Welcome to Credit Union.",
+      category: "system",
+      email: user.email,
+      metadata: {
+        accountNumber: user.accountNumber,
+      },
+    });
     // =====================================
     // GENERATE JWT
     // =====================================
@@ -354,6 +366,19 @@ exports.loginUser = async (req, res) => {
     user.refreshToken = refreshToken;
     await user.save();
 
+    await createNotification({
+      userId: user._id,
+      title: "New Login Detected",
+      message: `A login was detected from ${req.headers["user-agent"]}.`,
+      category: "security",
+      email: user.email,
+      metadata: {
+        ipAddress: req.ip,
+        browser: req.headers["user-agent"],
+        loginTime: new Date(),
+      },
+    });
+
     // =====================
     // COOKIE
     // =====================
@@ -472,6 +497,16 @@ exports.sendOtpController = async (req, res) => {
     user.otpPurpose = purpose;
 
     await user.save();
+    await createNotification({
+      userId: user._id,
+      title: "Verification Code Sent",
+      message: `A verification code has been sent to your registered email for ${purpose}.`,
+      category: "security",
+      email: user.email,
+      metadata: {
+        purpose,
+      },
+    });
 
     await sendOTP({ email: user.email, phone: user.phone, otp });
 
@@ -506,6 +541,13 @@ exports.verifyOtpController = async (req, res) => {
     user.otpPurpose = null;
 
     await user.save();
+    await createNotification({
+      userId: user._id,
+      title: "Verification Successful",
+      message: `Your verification code has been confirmed successfully.`,
+      category: "security",
+      email: user.email,
+    });
 
     const token = generateToken(user._id);
 
@@ -553,6 +595,14 @@ exports.forgotPassword = async (req, res) => {
     user.resetPasswordExpires = Date.now() + 15 * 60 * 1000;
 
     await user.save();
+    await createNotification({
+      userId: user._id,
+      title: "Password Reset Requested",
+      message:
+        "A request was made to reset your account password. If this wasn't you, contact support immediately.",
+      category: "security",
+      email: user.email,
+    });
 
     // frontend reset URL
     const resetURL = `https://credixa.co/reset-password?token=${resetToken}`;
@@ -639,6 +689,13 @@ exports.resetPassword = async (req, res) => {
     user.resetPasswordExpires = undefined;
 
     await user.save();
+    await createNotification({
+      userId: user._id,
+      title: "Password Reset Successful",
+      message: "Your account password has been reset successfully.",
+      category: "security",
+      email: user.email,
+    });
 
     res.json({
       success: true,
@@ -701,6 +758,17 @@ exports.logout = async (req, res) => {
       secure: process.env.NODE_ENV === "production",
     });
 
+    const user = await User.findById(decoded.id);
+
+    if (user) {
+      await createNotification({
+        userId: user._id,
+        title: "Logged Out",
+        message: "You logged out of your account.",
+        category: "security",
+      });
+    }
+
     return res.status(200).json({
       success: true,
       message: "Logged out successfully",
@@ -756,6 +824,3 @@ exports.refreshToken = async (req, res) => {
     });
   }
 };
-
-
-

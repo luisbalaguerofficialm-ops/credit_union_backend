@@ -33,10 +33,4 @@ router.post("/confirm", protect, verifyTransactionPin, (req, res) => {
   });
 });
 
-/**
- * Change transaction PIN
- * PUT /api/pin/change
- */
-router.put("/change", protect, pinController.changePin);
-
 module.exports = router;

@@ -135,12 +135,12 @@ exports.createTransaction = async (req, res) => {
     // ===============================
     // SENDER NOTIFICATION
     // ===============================
-    await Notification.create({
-      user: user._id,
+    await createNotification({
+      userId: user._id,
       title: "Transfer Initiated",
       message: `You sent $${parsedAmount.toLocaleString()} to ${recipientName}. Status: Pending.`,
-      type: "transaction",
       category: "transaction",
+      email: user.email,
     });
 
     // ===============================
@@ -231,20 +231,182 @@ exports.createTransaction = async (req, res) => {
 };
 
 // ===============================
-// GET ALL TRANSACTIONS
+// GET TRANSACTIONS (WITH FILTERS)
+// GET /api/transactions
 // ===============================
+
 exports.getTransactions = async (req, res) => {
   try {
-    const txns = await Transaction.find({ user: req.user._id }).sort({
-      date: -1,
+    const {
+      page = 1,
+      limit = 5,
+      type,
+      status,
+      dateRange,
+      search,
+      from,
+      to,
+    } = req.query;
+
+    const currentPage = Math.max(parseInt(page), 1);
+    const perPage = Math.max(parseInt(limit), 1);
+
+    const filter = {
+      user: req.user._id,
+    };
+
+    // =====================
+    // TYPE
+    // =====================
+    if (type && type !== "All Types") {
+      filter.type = type;
+    }
+
+    // =====================
+    // STATUS
+    // =====================
+    if (status && status !== "All Status") {
+      filter.status = status;
+    }
+
+    // =====================
+    // SEARCH
+    // =====================
+    if (search?.trim()) {
+      filter.$or = [
+        {
+          recipientName: {
+            $regex: search,
+            $options: "i",
+          },
+        },
+        {
+          recipientEmail: {
+            $regex: search,
+            $options: "i",
+          },
+        },
+        {
+          transactionId: {
+            $regex: search,
+            $options: "i",
+          },
+        },
+        {
+          bankName: {
+            $regex: search,
+            $options: "i",
+          },
+        },
+      ];
+    }
+
+    // =====================
+    // CUSTOM DATE
+    // =====================
+    if (from || to) {
+      filter.createdAt = {};
+
+      if (from) {
+        filter.createdAt.$gte = new Date(from);
+      }
+
+      if (to) {
+        filter.createdAt.$lte = new Date(
+          new Date(to).setHours(23, 59, 59, 999),
+        );
+      }
+    }
+
+    // =====================
+    // PRESET DATE RANGE
+    // =====================
+    else if (dateRange) {
+      const now = new Date();
+      let startDate;
+
+      switch (dateRange) {
+        case "Last Week":
+          startDate = new Date(now);
+          startDate.setDate(now.getDate() - 7);
+          break;
+
+        case "Last Two Weeks":
+          startDate = new Date(now);
+          startDate.setDate(now.getDate() - 14);
+          break;
+
+        case "Last Month":
+          startDate = new Date(now);
+          startDate.setMonth(now.getMonth() - 1);
+          break;
+
+        case "Last 30 Days":
+          startDate = new Date(now);
+          startDate.setDate(now.getDate() - 30);
+          break;
+
+        case "Last 90 Days":
+          startDate = new Date(now);
+          startDate.setDate(now.getDate() - 90);
+          break;
+
+        case "This Year":
+          startDate = new Date(now.getFullYear(), 0, 1);
+          break;
+
+        case "Last Year":
+          filter.createdAt = {
+            $gte: new Date(now.getFullYear() - 1, 0, 1),
+            $lte: new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59, 999),
+          };
+          break;
+      }
+
+      if (startDate) {
+        filter.createdAt = {
+          $gte: startDate,
+          $lte: now,
+        };
+      }
+    }
+
+    // =====================
+    // COUNT
+    // =====================
+    const total = await Transaction.countDocuments(filter);
+
+    // =====================
+    // FETCH
+    // =====================
+    const transactions = await Transaction.find(filter)
+      .sort({ createdAt: -1 })
+      .skip((currentPage - 1) * perPage)
+      .limit(perPage);
+
+    res.status(200).json({
+      success: true,
+
+      pagination: {
+        total,
+        page: currentPage,
+        limit: perPage,
+        totalPages: Math.ceil(total / perPage),
+        hasNextPage: currentPage < Math.ceil(total / perPage),
+        hasPrevPage: currentPage > 1,
+      },
+
+      transactions,
     });
-    res.json({ success: true, transactions: txns });
   } catch (err) {
-    console.error("Get Transactions Error:", err);
-    res.status(500).json({ success: false, message: "Server error" });
+    console.error(err);
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch transactions",
+    });
   }
 };
-
 // / ===============================
 // GET TRANSACTION BY TRANSACTION ID
 // ===============================
@@ -331,6 +493,13 @@ exports.deleteTransaction = async (req, res) => {
 
     const io = req.app.get("io");
     await emitDashboardUpdate(io, req.user._id);
+
+    await createNotification({
+      userId: req.user._id,
+      title: "Transaction Deleted",
+      message: "One of your transaction records has been removed.",
+      category: "transaction",
+    });
 
     res.json({ success: true, message: "Transaction deleted successfully" });
   } catch (err) {

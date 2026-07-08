@@ -45,7 +45,7 @@ exports.createNotification = async ({
   userId,
   title,
   message,
-  category = "system", // default category
+  category,
   email,
   phone,
   metadata = null,

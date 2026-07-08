@@ -95,6 +95,9 @@ const notificationRoutes = require("./routes/notificationRoutes");
 const FundsRoutes = require("./routes/FundsRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
 const pinRoutes = require("./routes/pinRoutes");
+const checkRoutes = require("./routes/checkRoutes");
+const supportRoutes = require("./routes/supportRoutes");
+
 
 /* ==============================
    PUBLIC ROUTE
@@ -123,6 +126,9 @@ app.use("/api/dashboard", dashboardRoutes);
 app.use("/api", FundsRoutes);
 app.use("/api/pin", pinRoutes);
 app.use("/uploads", express.static("uploads"));
+app.use("/api/check-deposits", checkRoutes);
+app.use("/api/support", supportRoutes);
+
 
 /* ==============================
    404 HANDLER

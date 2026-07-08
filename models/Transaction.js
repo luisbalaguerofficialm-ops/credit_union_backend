@@ -6,12 +6,14 @@ const TransactionSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
+      index: true,
     },
 
     type: {
       type: String,
       enum: ["Transfer", "Deposit", "Withdrawal", "Purchase", "Subscription"],
       required: true,
+      index: true,
     },
 
     // Recipient Details
@@ -36,12 +38,14 @@ const TransactionSchema = new mongoose.Schema(
     bankName: {
       type: String,
       required: true,
+      index: true,
     },
 
     // Domestic Transfers
     accountNumber: {
       type: String,
       default: null,
+      index: true,
     },
 
     // International Transfers
@@ -60,7 +64,7 @@ const TransactionSchema = new mongoose.Schema(
     },
 
     amount: {
-      type: String,
+      type: Number,
       required: true,
       min: 1,
     },
@@ -76,6 +80,7 @@ const TransactionSchema = new mongoose.Schema(
       type: String,
       enum: ["Pending", "Processing", "Successful", "Failed"],
       default: "Pending",
+      index: true,
     },
 
     description: String,
@@ -86,16 +91,23 @@ const TransactionSchema = new mongoose.Schema(
       type: String,
       unique: true,
       required: true,
-    },
-
-    date: {
-      type: Date,
-      default: Date.now,
+      index: true,
     },
   },
   {
     timestamps: true,
   },
 );
+
+TransactionSchema.index({ user: 1, createdAt: -1 });
+TransactionSchema.index({ user: 1, status: 1 });
+TransactionSchema.index({ user: 1, type: 1 });
+
+TransactionSchema.index({
+  recipientName: "text",
+  recipientEmail: "text",
+  bankName: "text",
+  transactionId: "text",
+});
 
 module.exports = mongoose.model("Transaction", TransactionSchema);

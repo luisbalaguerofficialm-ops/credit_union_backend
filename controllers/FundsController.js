@@ -2,6 +2,7 @@ const FundingRequest = require("../models/FundingRequest");
 const Wallet = require("../models/Wallet");
 const Transaction = require("../models/Transaction");
 const emitDashboardUpdate = require("../utils/emitDashboardUpdate");
+const { createNotification } = require("./notificationController");
 
 /**
  * @desc  Create a new bank funding request
@@ -35,6 +36,13 @@ exports.requestBankFunding = async (req, res) => {
       status: "pending",
     });
 
+    await createNotification({
+      userId: req.user._id,
+      title: "Funding Request Submitted",
+      message: `Your funding request of $${Number(amount).toLocaleString()} has been submitted and is awaiting approval.`,
+      category: "funding",
+      email: req.user.email,
+    });
     // emit real-time update
     const io = req.app.get("io");
     if (io) {

@@ -5,6 +5,8 @@ const Wallet = require("../models/Wallet");
 const { uploadToCloudinary } = require("../utils/cloudinary");
 const bcrypt = require("bcryptjs");
 const { sendEmail } = require("../utils/notify");
+const { createNotification } = require("./notificationController");
+
 /* ===============================
    GET USER PROFILE (NEW)
    GET /api/users/profile
@@ -126,6 +128,14 @@ exports.updateProfile = async (req, res) => {
     if (username) user.username = username;
 
     await user.save();
+
+    await createNotification({
+      userId: user._id,
+      title: "Profile Updated",
+      message: "Your profile information was updated successfully.",
+      category: "system",
+      email: user.email,
+    });
 
     res.json({
       success: true,
@@ -260,6 +270,15 @@ exports.changePassword = async (req, res) => {
 
     await user.save();
 
+    await createNotification({
+      userId: user._id,
+      title: "Password Changed",
+      message:
+        "Your account password was changed successfully. If this wasn't you, contact support immediately.",
+      category: "security",
+      email: user.email,
+    });
+
     res.status(200).json({
       success: true,
       message: "Password changed successfully",
@@ -307,6 +326,17 @@ exports.changeTransactionPin = async (req, res) => {
     user.pinHash = await bcrypt.hash(newPin, 10);
 
     await user.save();
+
+    await createNotification({
+      userId: user._id,
+      title: "Transaction PIN Changed",
+      message: "Your transaction PIN has been changed successfully.",
+      category: "security",
+      email: user.email,
+      metadata: {
+        type: "pin_changed",
+      },
+    });
 
     // =====================================
     // SEND EMAIL
@@ -536,6 +566,16 @@ exports.resetTransactionPin = async (req, res) => {
     user.transactionPinResetVerified = false;
 
     await user.save();
+    await createNotification({
+      userId: user._id,
+      title: "Transaction PIN Reset",
+      message: "Your transaction PIN has been reset successfully.",
+      category: "security",
+      email: user.email,
+      metadata: {
+        type: "pin_reset",
+      },
+    });
 
     await sendEmail({
       to: user.email,
@@ -665,6 +705,12 @@ exports.updatePreferences = async (req, res) => {
         new: true,
       },
     );
+    await createNotification({
+      userId: user._id,
+      title: "Notification Preferences Updated",
+      message: "Your notification preferences have been updated.",
+      category: "system",
+    });
 
     res.json({
       success: true,
@@ -704,6 +750,14 @@ exports.deleteAccount = async (req, res) => {
 
     await Wallet.deleteOne({
       user: user._id,
+    });
+
+    await createNotification({
+      userId: user._id,
+      title: "Account Scheduled For Deletion",
+      message: "Your account has been deleted successfully.",
+      category: "security",
+      email: user.email,
     });
 
     await User.findByIdAndDelete(user._id);

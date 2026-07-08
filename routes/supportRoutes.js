@@ -1,36 +1,29 @@
 const express = require("express");
-const multer = require("multer");
-const {
-  createTicket,
-  getMyTickets,
-} = require("../controllers/supportTicketController");
-const { sendMessage, getMessages } = require("../controllers/chatController");
-const { getFAQs } = require("../controllers/faqController");
-const { protect } = require("../middlewares/authMiddleware");
-
 const router = express.Router();
 
-// FILE UPLOAD
-const upload = multer({
-  limits: { fileSize: 10 * 1024 * 1024 },
-  fileFilter(req, file, cb) {
-    const allowed = ["image/png", "image/jpeg", "application/pdf"];
-    if (!allowed.includes(file.mimetype)) {
-      cb(new Error("File type not supported"));
-    }
-    cb(null, true);
-  },
-});
+const {
+  createSupportConversation,
+  getSupportConversation,
+  getSupportMessages,
+  sendSupportMessage,
+  markSupportMessagesRead,
+} = require("../controllers/supportMessage");
 
-// TICKETS
-router.post("/tickets", protect, upload.single("attachment"), createTicket);
-router.get("/tickets", protect, getMyTickets);
+const { protect } = require("../middlewares/authMiddleware");
 
-// CHAT
-router.post("/chat", protect, sendMessage);
-router.get("/chat", protect, getMessages);
+// Create conversation (optional)
+router.post("/conversation", protect, createSupportConversation);
 
-// FAQ
-router.get("/faqs", getFAQs);
+// Get conversation + messages
+router.get("/conversation", protect, getSupportConversation);
+
+// Send message
+router.post("/message", protect, sendSupportMessage);
+
+// Get all messages
+router.get("/messages/:conversationId", protect, getSupportMessages);
+
+// Mark messages as read
+router.patch("/messages/read", protect, markSupportMessagesRead);
 
 module.exports = router;
