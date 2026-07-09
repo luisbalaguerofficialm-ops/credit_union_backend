@@ -23,6 +23,25 @@ exports.getNotifications = async (req, res) => {
       read: false,
     });
 
+    const all = await Notification.countDocuments({
+      user: req.user.id,
+    });
+
+    const security = await Notification.countDocuments({
+      user: req.user.id,
+      category: "security",
+    });
+
+    const transaction = await Notification.countDocuments({
+      user: req.user.id,
+      category: "transaction",
+    });
+
+    const system = await Notification.countDocuments({
+      user: req.user.id,
+      category: "system",
+    });
+
     res.status(200).json({
       success: true,
       unreadCount,

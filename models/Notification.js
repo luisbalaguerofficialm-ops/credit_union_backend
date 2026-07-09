@@ -12,7 +12,7 @@ const NotificationSchema = new mongoose.Schema(
     //  Category (used by frontend filtering)
     category: {
       type: String,
-      enum: ["transaction", "security", "system", "activity"],
+      enum: ["transaction", "security", "system", "activity", "all"],
       required: true,
       index: true,
     },
@@ -20,7 +20,7 @@ const NotificationSchema = new mongoose.Schema(
     //Type (kept for compatibility if already used elsewhere)
     type: {
       type: String,
-      enum: ["transaction", "security", "system", "activity"],
+      enum: ["transaction", "security", "system", "all", "activity"],
       index: true,
     },
 
