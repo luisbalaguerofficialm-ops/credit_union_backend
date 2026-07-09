@@ -157,6 +157,7 @@ exports.updateProfile = async (req, res) => {
 exports.getDashboard = async (req, res) => {
   try {
     const userId = req.user._id;
+    const timeframe = req.query.timeframe || "30days";
     const user = await User.findById(userId);
 
     // Fetch wallet to get balance and currency
@@ -167,7 +168,7 @@ exports.getDashboard = async (req, res) => {
 
     const transactions = await Transaction.find({ user: userId })
       .sort({ createdAt: -1 })
-      .limit(5);
+      .limit(3);
 
     // ==========================================
     // FORMAT TRANSACTIONS FOR FRONTEND
@@ -188,7 +189,81 @@ exports.getDashboard = async (req, res) => {
 
     const notifications = await Notification.find({ user: userId })
       .sort({ createdAt: -1 })
-      .limit(5);
+      .limit(3);
+
+    // ==========================================
+    // SPENDING ANALYTICS AGGREGATION PIPELINE
+    // ==========================================
+    const now = new Date();
+    let startDate = new Date();
+    let numIntervals = 4; // 4 weeks for 30 days breakdown
+
+    if (timeframe === "3months") {
+      startDate.setMonth(now.getMonth() - 3);
+      numIntervals = 3; // 3 months breakdown
+    } else {
+      startDate.setDate(now.getDate() - 30);
+    }
+
+    const spendingData = await Transaction.aggregate([
+      {
+        $match: {
+          user: userId,
+          createdAt: { $gte: startDate },
+          type: { $in: ["withdrawal", "transfer", "payment"] },
+          status: "Successful", // Filter out failed/pending adjustments if necessary
+        },
+      },
+      {
+        $group: {
+          _id:
+            timeframe === "3months"
+              ? { $month: "$createdAt" }
+              : {
+                  $ceil: {
+                    $divide: [
+                      { $subtract: [now, "$createdAt"] },
+                      1000 * 60 * 60 * 24 * 7,
+                    ],
+                  },
+                },
+          totalSpent: { $sum: "$amount" },
+        },
+      },
+    ]);
+
+    // Format metrics seamlessly into index arrays for predictable chart rendering
+    let analyticsArray = [];
+    if (timeframe === "3months") {
+      // Setup structural array for the past 3 months
+      for (let i = 2; i >= 0; i--) {
+        const d = new Date();
+        d.setMonth(now.getMonth() - i);
+        const mIdx = d.getMonth() + 1;
+        const label = d.toLocaleString("default", { month: "short" });
+        const found = spendingData.find((s) => s._id === mIdx);
+        analyticsArray.push({ label, amount: found ? found.totalSpent : 0 });
+      }
+    } else {
+      // Setup structural array for 4 uniform interval blocks (Week 1 -> Week 4)
+      // Group allocations normalized into reverse chronological delta buckets
+      for (let w = 4; w >= 1; w--) {
+        const found = spendingData.find(
+          (s) => s._id === w || (w === 4 && s._id > 4),
+        );
+        analyticsArray.push({
+          label: `Week ${5 - w}`,
+          amount: found ? found.totalSpent : 0,
+        });
+      }
+    }
+
+    // Determine highest amount to calculate percentage scaling for visual layout balances
+    const maxSpending = Math.max(...analyticsArray.map((a) => a.amount), 1);
+    const chartData = analyticsArray.map((item) => ({
+      ...item,
+      percentage: Math.min(Math.round((item.amount / maxSpending) * 100), 100),
+    }));
 
     res.json({
       success: true,
@@ -201,6 +276,7 @@ exports.getDashboard = async (req, res) => {
       choosedAccount: user.choosedAccount,
       profileImage: user.profileImage,
       unreadNotifications: notifications.filter((n) => !n.read).length,
+      analytics: chartData,
     });
   } catch (err) {
     console.error("Dashboard Error:", err);
