@@ -25,9 +25,14 @@ exports.getNotifications = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      count: notifications.length,
       unreadCount,
       notifications,
+      counts: {
+        all,
+        security,
+        transaction,
+        system,
+      },
     });
   } catch (err) {
     console.error("Get Notifications Error:", err);
