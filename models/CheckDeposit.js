@@ -59,6 +59,4 @@ const CheckDepositSchema = new mongoose.Schema(
 );
 
 CheckDepositSchema.index({ user: 1, createdAt: -1 });
-CheckDepositSchema.index({ status: 1 });
-
 module.exports = mongoose.model("CheckDeposit", CheckDepositSchema);

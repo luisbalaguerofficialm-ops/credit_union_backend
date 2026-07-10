@@ -14,20 +14,13 @@ const requireVerifiedKyc = require("../middlewares/requireVerifiedKyc");
 const {
   getTransactions,
   createTransaction,
-  getTransactionByTransactionId,
+ getTransactionById,
   updateTransaction,
-  deleteTransaction,
+  deleteTransactionByTransactionId,
   getFiltered,
   exportTransactionsCSV,
   exportTransactionsPDF,
 } = require("../controllers/transactionController");
-
-/* ===============================
-   IMPORTANT: ORDER MATTERS
-================================ */
-
-// Filtered transactions (STATIC)
-router.get("/filter", protect, getFiltered);
 
 // Export
 router.get("/export/csv", protect, exportTransactionsCSV);
@@ -39,20 +32,23 @@ router.get("/", protect, getTransactions);
 // ===============================
 // CREATE TRANSACTION (PIN REQUIRED)
 // ===============================
-router.post(
-  "/",
-  protect,
-  verifyTransactionPin,
-  createTransaction
-);
+router.post("/", protect, verifyTransactionPin, createTransaction);
 
-// Get transaction by transactionId (DYNAMIC)
-router.get("/:transactionId", protect, getTransactionByTransactionId);
+
+
+router.get(
+  "/:id",
+  protect,
+getTransactionById
+);
 
 // Update transaction (Admin / internal use)
 router.put("/:id", protect, updateTransaction);
 
-// Delete transaction
-router.delete("/:id", protect, deleteTransaction);
+router.delete(
+  "/:transactionId",
+  protect,
+  deleteTransactionByTransactionId,
+);
 
 module.exports = router;

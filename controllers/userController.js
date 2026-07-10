@@ -196,11 +196,9 @@ exports.getDashboard = async (req, res) => {
     // ==========================================
     const now = new Date();
     let startDate = new Date();
-    let numIntervals = 4; // 4 weeks for 30 days breakdown
 
-    if (timeframe === "3months") {
-      startDate.setMonth(now.getMonth() - 3);
-      numIntervals = 3; // 3 months breakdown
+    if (timeframe === "1week") {
+      startDate.setDate(now.getDate() - 6); // Today + previous 6 days = 7 days
     } else {
       startDate.setDate(now.getDate() - 30);
     }
@@ -217,8 +215,13 @@ exports.getDashboard = async (req, res) => {
       {
         $group: {
           _id:
-            timeframe === "3months"
-              ? { $month: "$createdAt" }
+            timeframe === "1week"
+              ? {
+                  $dateToString: {
+                    format: "%Y-%m-%d",
+                    date: "$createdAt",
+                  },
+                }
               : {
                   $ceil: {
                     $divide: [
@@ -227,22 +230,30 @@ exports.getDashboard = async (req, res) => {
                     ],
                   },
                 },
-          totalSpent: { $sum: "$amount" },
+          totalSpent: {
+            $sum: "$amount",
+          },
         },
       },
     ]);
 
     // Format metrics seamlessly into index arrays for predictable chart rendering
     let analyticsArray = [];
-    if (timeframe === "3months") {
-      // Setup structural array for the past 3 months
-      for (let i = 2; i >= 0; i--) {
+    if (timeframe === "1week") {
+      for (let i = 6; i >= 0; i--) {
         const d = new Date();
-        d.setMonth(now.getMonth() - i);
-        const mIdx = d.getMonth() + 1;
-        const label = d.toLocaleString("default", { month: "short" });
-        const found = spendingData.find((s) => s._id === mIdx);
-        analyticsArray.push({ label, amount: found ? found.totalSpent : 0 });
+        d.setDate(now.getDate() - i);
+
+        const key = d.toISOString().split("T")[0];
+
+        const found = spendingData.find((s) => s._id === key);
+
+        analyticsArray.push({
+          label: d.toLocaleDateString("en-US", {
+            weekday: "short",
+          }), // Mon, Tue, Wed...
+          amount: found ? found.totalSpent : 0,
+        });
       }
     } else {
       // Setup structural array for 4 uniform interval blocks (Week 1 -> Week 4)

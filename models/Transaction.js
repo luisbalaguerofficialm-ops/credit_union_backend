@@ -78,9 +78,15 @@ const TransactionSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["Pending", "Processing", "Successful", "Failed"],
+      enum: [
+        "Pending",
+        "Processing",
+        "Funds Authorized",
+        "Successful",
+        "Failed",
+        "Initiated from Web Portal",
+      ],
       default: "Pending",
-      index: true,
     },
 
     description: String,

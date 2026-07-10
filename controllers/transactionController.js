@@ -3,10 +3,10 @@ const Transaction = require("../models/Transaction");
 const Wallet = require("../models/Wallet");
 const emitDashboardUpdate = require("../utils/emitDashboardUpdate");
 const { Parser } = require("json2csv");
-
 const PDFDocument = require("pdfkit");
 const Notification = require("../models/Notification");
 const { calculateTransferFee } = require("../utils/feeCalculation");
+const { createNotification } = require("./notificationController");
 
 //CENTRALIZED NOTIFICATION UTILS
 const {
@@ -131,17 +131,6 @@ exports.createTransaction = async (req, res) => {
     // ===============================
     const io = req.app.get("io");
     await emitDashboardUpdate(io, user._id);
-
-    // ===============================
-    // SENDER NOTIFICATION
-    // ===============================
-    await createNotification({
-      userId: user._id,
-      title: "Transfer Initiated",
-      message: `You sent $${parsedAmount.toLocaleString()} to ${recipientName}. Status: Pending.`,
-      category: "transaction",
-      email: user.email,
-    });
 
     // ===============================
     // EMAIL SENDER
@@ -376,13 +365,24 @@ exports.getTransactions = async (req, res) => {
     // =====================
     const total = await Transaction.countDocuments(filter);
 
-    // =====================
-    // FETCH
-    // =====================
     const transactions = await Transaction.find(filter)
       .sort({ createdAt: -1 })
       .skip((currentPage - 1) * perPage)
-      .limit(perPage);
+      .limit(perPage)
+      .lean();
+
+    const formattedTransactions = transactions.map((transaction) => ({
+      _id: transaction._id,
+      transactionId: transaction.transactionId,
+      type: transaction.type,
+      status: transaction.status,
+      amount: transaction.amount,
+      recipientName: transaction.recipientName,
+      recipientEmail: transaction.recipientEmail,
+      bankName: transaction.bankName,
+      description: transaction.description,
+      createdAt: transaction.createdAt,
+    }));
 
     res.status(200).json({
       success: true,
@@ -396,7 +396,7 @@ exports.getTransactions = async (req, res) => {
         hasPrevPage: currentPage > 1,
       },
 
-      transactions,
+      transactions: formattedTransactions,
     });
   } catch (err) {
     console.error(err);
@@ -407,27 +407,61 @@ exports.getTransactions = async (req, res) => {
     });
   }
 };
-// / ===============================
-// GET TRANSACTION BY TRANSACTION ID
+/// ===============================
+// GET TRANSACTION BY ID
+// GET /api/transactions/:id
 // ===============================
-exports.getTransactionByTransactionId = async (req, res) => {
+exports.getTransactionById = async (req, res) => {
   try {
-    const { transactionId } = req.params;
+    const { id } = req.params;
 
     const transaction = await Transaction.findOne({
-      transactionId,
-    });
+      _id: id,
+      user: req.user._id,
+    }).lean();
 
     if (!transaction) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Transaction not found" });
+      return res.status(404).json({
+        success: false,
+        message: "Transaction not found",
+      });
     }
 
-    res.json({ success: true, transaction });
+    res.status(200).json({
+      success: true,
+      transaction: {
+        _id: transaction._id,
+        transactionId: transaction.transactionId,
+
+        type: transaction.type,
+        status: transaction.status,
+        amount: transaction.amount,
+
+        recipientName: transaction.recipientName,
+        recipientEmail: transaction.recipientEmail,
+        recipientCountry: transaction.recipientCountry,
+
+        bankName: transaction.bankName,
+        accountNumber: transaction.accountNumber,
+        iban: transaction.iban,
+        swiftCode: transaction.swiftCode,
+
+        description: transaction.description,
+
+        email: transaction.email,
+        phone: transaction.phone,
+
+        createdAt: transaction.createdAt,
+        updatedAt: transaction.updatedAt,
+      },
+    });
   } catch (err) {
-    console.error("Get Transaction Error:", err);
-    res.status(500).json({ success: false, message: "Server error" });
+    console.error("Get Transaction By ID Error:", err);
+
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
   }
 };
 
@@ -476,70 +510,45 @@ exports.updateTransaction = async (req, res) => {
 };
 
 // ===============================
-// DELETE TRANSACTION
+// DELETE TRANSACTION BY TRANSACTION ID
+// DELETE /api/transactions/:transactionId
 // ===============================
-exports.deleteTransaction = async (req, res) => {
+exports.deleteTransactionByTransactionId = async (req, res) => {
   try {
+    const { transactionId } = req.params;
+
     const transaction = await Transaction.findOneAndDelete({
-      _id: req.params.id,
+      transactionId,
       user: req.user._id,
     });
 
     if (!transaction) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Transaction not found" });
+      return res.status(404).json({
+        success: false,
+        message: "Transaction not found",
+      });
     }
 
+    // Realtime dashboard update
     const io = req.app.get("io");
     await emitDashboardUpdate(io, req.user._id);
 
-    await createNotification({
-      userId: req.user._id,
-      title: "Transaction Deleted",
-      message: "One of your transaction records has been removed.",
-      category: "transaction",
+    res.status(200).json({
+      success: true,
+      message: "Transaction deleted successfully",
+      deletedTransaction: {
+        transactionId: transaction.transactionId,
+        amount: transaction.amount,
+        recipientName: transaction.recipientName,
+        status: transaction.status,
+      },
     });
-
-    res.json({ success: true, message: "Transaction deleted successfully" });
   } catch (err) {
     console.error("Delete Transaction Error:", err);
-    res.status(500).json({ success: false, message: "Server error" });
-  }
-};
-
-// ===============================
-// FILTERED TRANSACTIONS (NO LIMIT)
-// ===============================
-exports.getFiltered = async (req, res) => {
-  try {
-    const userId = req.user._id;
-    const { type, status, from, to, q } = req.query;
-
-    const filter = { user: userId };
-    if (type) filter.type = type;
-    if (status) filter.status = status;
-
-    if (from || to) {
-      filter.date = {};
-      if (from) filter.date.$gte = new Date(from);
-      if (to)
-        filter.date.$lte = new Date(new Date(to).setHours(23, 59, 59, 999));
-    }
-
-    if (q) {
-      filter.$or = [
-        { recipientName: { $regex: q, $options: "i" } },
-        { description: { $regex: q, $options: "i" } },
-      ];
-    }
-
-    const data = await Transaction.find(filter).sort({ date: -1 });
-
-    res.json({ success: true, total: data.length, data });
-  } catch (err) {
-    console.error("Filtered Transactions Error:", err);
-    res.status(500).json({ success: false, message: "Server error" });
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
   }
 };
 
