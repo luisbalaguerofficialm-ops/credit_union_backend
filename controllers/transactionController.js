@@ -510,15 +510,15 @@ exports.updateTransaction = async (req, res) => {
 };
 
 // ===============================
-// DELETE TRANSACTION BY TRANSACTION ID
-// DELETE /api/transactions/:transactionId
+// DELETE TRANSACTION BY MONGODB _ID
+// DELETE /api/transactions/:id
 // ===============================
-exports.deleteTransactionByTransactionId = async (req, res) => {
+exports.deleteTransactionById = async (req, res) => {
   try {
-    const { transactionId } = req.params;
+    const { id } = req.params;
 
     const transaction = await Transaction.findOneAndDelete({
-      transactionId,
+      _id: id,
       user: req.user._id,
     });
 
@@ -533,19 +533,39 @@ exports.deleteTransactionByTransactionId = async (req, res) => {
     const io = req.app.get("io");
     await emitDashboardUpdate(io, req.user._id);
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: "Transaction deleted successfully",
       deletedTransaction: {
+        _id: transaction._id,
         transactionId: transaction.transactionId,
-        amount: transaction.amount,
-        recipientName: transaction.recipientName,
+
+        type: transaction.type,
         status: transaction.status,
+        amount: transaction.amount,
+
+        recipientName: transaction.recipientName,
+        recipientEmail: transaction.recipientEmail,
+        recipientCountry: transaction.recipientCountry,
+
+        bankName: transaction.bankName,
+        accountNumber: transaction.accountNumber,
+        iban: transaction.iban,
+        swiftCode: transaction.swiftCode,
+
+        description: transaction.description,
+
+        email: transaction.email,
+        phone: transaction.phone,
+
+        createdAt: transaction.createdAt,
+        updatedAt: transaction.updatedAt,
       },
     });
   } catch (err) {
     console.error("Delete Transaction Error:", err);
-    res.status(500).json({
+
+    return res.status(500).json({
       success: false,
       message: "Server error",
     });

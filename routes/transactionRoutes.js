@@ -16,7 +16,7 @@ const {
   createTransaction,
  getTransactionById,
   updateTransaction,
-  deleteTransactionByTransactionId,
+  deleteTransactionById,
   getFiltered,
   exportTransactionsCSV,
   exportTransactionsPDF,
@@ -46,9 +46,9 @@ getTransactionById
 router.put("/:id", protect, updateTransaction);
 
 router.delete(
-  "/:transactionId",
+  "/:id",
   protect,
-  deleteTransactionByTransactionId,
+  deleteTransactionById,
 );
 
 module.exports = router;
