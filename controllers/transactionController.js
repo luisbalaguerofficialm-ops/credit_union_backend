@@ -407,7 +407,7 @@ exports.getTransactions = async (req, res) => {
     });
   }
 };
-/// ===============================
+// ===============================
 // GET TRANSACTION BY ID
 // GET /api/transactions/:id
 // ===============================
@@ -418,7 +418,9 @@ exports.getTransactionById = async (req, res) => {
     const transaction = await Transaction.findOne({
       _id: id,
       user: req.user._id,
-    }).lean();
+    })
+      .populate("user", "firstName lastName username email")
+      .lean();
 
     if (!transaction) {
       return res.status(404).json({
@@ -437,17 +439,31 @@ exports.getTransactionById = async (req, res) => {
         status: transaction.status,
         amount: transaction.amount,
 
+        // Sender (logged-in user)
+        user: {
+          _id: transaction.user._id,
+          firstName: transaction.user.firstName,
+          lastName: transaction.user.lastName,
+          fullName: `${transaction.user.firstName} ${transaction.user.lastName}`,
+          username: transaction.user.username,
+          email: transaction.user.email,
+        },
+
+        // Recipient
         recipientName: transaction.recipientName,
         recipientEmail: transaction.recipientEmail,
         recipientCountry: transaction.recipientCountry,
 
+        // Banking
         bankName: transaction.bankName,
         accountNumber: transaction.accountNumber,
         iban: transaction.iban,
         swiftCode: transaction.swiftCode,
 
+        // Transaction
         description: transaction.description,
 
+        // Contact
         email: transaction.email,
         phone: transaction.phone,
 
