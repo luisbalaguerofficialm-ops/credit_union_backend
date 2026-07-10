@@ -228,7 +228,7 @@ exports.getTransactions = async (req, res) => {
   try {
     const {
       page = 1,
-      limit = 5,
+      limit = 3,
       type,
       status,
       dateRange,
