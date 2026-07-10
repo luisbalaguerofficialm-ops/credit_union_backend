@@ -370,7 +370,7 @@ exports.loginUser = async (req, res) => {
       userId: user._id,
       title: "New Login Detected",
       message: `A login was detected from ${req.headers["user-agent"]}.`,
-      category: "security",
+      category: "system",
       email: user.email,
       metadata: {
         ipAddress: req.ip,
@@ -501,7 +501,7 @@ exports.sendOtpController = async (req, res) => {
       userId: user._id,
       title: "Verification Code Sent",
       message: `A verification code has been sent to your registered email for ${purpose}.`,
-      category: "security",
+      category: "system",
       email: user.email,
       metadata: {
         purpose,
@@ -563,177 +563,6 @@ exports.verifyOtpController = async (req, res) => {
   }
 };
 
-/* =====================================================
-   FORGOT PASSWORD
-===================================================== */
-
-exports.forgotPassword = async (req, res) => {
-  try {
-    const { email } = req.body;
-
-    const user = await User.findOne({
-      email: email.toLowerCase(),
-    });
-
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found",
-      });
-    }
-
-    // generate raw token
-    const resetToken = crypto.randomBytes(32).toString("hex");
-
-    // hash token before storing
-    const hashedToken = crypto
-      .createHash("sha256")
-      .update(resetToken)
-      .digest("hex");
-
-    user.resetPasswordToken = hashedToken;
-    user.resetPasswordExpires = Date.now() + 15 * 60 * 1000;
-
-    await user.save();
-    await createNotification({
-      userId: user._id,
-      title: "Password Reset Requested",
-      message:
-        "A request was made to reset your account password. If this wasn't you, contact support immediately.",
-      category: "security",
-      email: user.email,
-    });
-
-    // frontend reset URL
-    const resetURL = `https://credixa.co/reset-password?token=${resetToken}`;
-
-    await sendEmail({
-      to: user.email,
-      subject: "Password Reset Request",
-
-      html: `
-      <div style="font-family:Arial;padding:20px">
-      
-      <h2>Password Reset</h2>
-
-      <p>Hello ${user.firstName},</p>
-
-      <p>
-      Click the button below to reset your password:
-      </p>
-
-      <a
-      href="${resetURL}"
-      style="
-      background:#006A91;
-      color:white;
-      padding:12px 20px;
-      text-decoration:none;
-      border-radius:6px;
-      display:inline-block;
-      "
-      >
-      Reset Password
-      </a>
-
-      <p>
-      This link expires in 15 minutes.
-      </p>
-
-      </div>
-      `,
-    });
-
-    res.json({
-      success: true,
-      message: "Password reset link sent",
-    });
-  } catch (err) {
-    console.log(err);
-
-    res.status(500).json({
-      success: false,
-      message: "Failed to send reset link",
-    });
-  }
-};
-
-/* =====================================================
-   RESET PASSWORD
-===================================================== */
-
-exports.resetPassword = async (req, res) => {
-  try {
-    const { token, password, confirmPassword } = req.body;
-
-    if (!token || !password || !confirmPassword) {
-      return res.status(400).json({
-        success: false,
-        message: "Token, password and confirm password are required",
-      });
-    }
-
-    if (password !== confirmPassword) {
-      return res.status(400).json({
-        success: false,
-        message: "Passwords do not match",
-      });
-    }
-
-    if (password.length < 8) {
-      return res.status(400).json({
-        success: false,
-        message: "Password must be at least 8 characters",
-      });
-    }
-
-    const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
-
-    const user = await User.findOne({
-      resetPasswordToken: hashedToken,
-
-      resetPasswordExpires: {
-        $gt: Date.now(),
-      },
-    });
-
-    if (!user) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid or expired reset token",
-      });
-    }
-
-    user.password = await bcrypt.hash(password, 10);
-
-    // Remove reset token after successful reset
-    user.resetPasswordToken = undefined;
-    user.resetPasswordExpires = undefined;
-
-    await user.save();
-
-    await createNotification({
-      userId: user._id,
-      title: "Password Reset Successful",
-      message: "Your account password has been reset successfully.",
-      category: "security",
-      email: user.email,
-    });
-
-    return res.status(200).json({
-      success: true,
-      message: "Password reset successfully",
-    });
-  } catch (err) {
-    console.error("Reset Password Error:", err);
-
-    return res.status(500).json({
-      success: false,
-      message: "Password reset failed",
-    });
-  }
-};
-
 exports.logout = async (req, res) => {
   try {
     /* =========================
@@ -788,7 +617,7 @@ exports.logout = async (req, res) => {
         userId: user._id,
         title: "Logged Out",
         message: "You logged out of your account.",
-        category: "security",
+        category: "system",
       });
     }
 
@@ -844,6 +673,212 @@ exports.refreshToken = async (req, res) => {
     return res.status(403).json({
       success: false,
       message: "Refresh token expired or invalid",
+    });
+  }
+};
+
+/* =====================================================
+   FORGOT PASSWORD
+===================================================== */
+
+exports.forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: "Email is required",
+      });
+    }
+
+    const user = await User.findOne({
+      email: email.toLowerCase(),
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    const otp = generateOTP();
+
+    user.otpHash = hashOTP(otp);
+    user.otpExpiresAt = Date.now() + 10 * 60 * 1000;
+    user.otpPurpose = "password_reset";
+
+    await user.save();
+
+    await createNotification({
+      userId: user._id,
+      title: "Password Reset Requested",
+      message: "A password reset verification code was requested.",
+      category: "security",
+      email: user.email,
+    });
+
+    await sendOTP({
+      email: user.email,
+      phone: user.phone,
+      otp,
+    });
+
+    return res.json({
+      success: true,
+      message: "Verification code sent successfully",
+    });
+  } catch (err) {
+    console.log(err);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to send verification code",
+    });
+  }
+};
+
+/* =====================================================
+   VERIFY PASSWORD RESET OTP
+===================================================== */
+
+exports.verifyForgotPasswordOtp = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+
+    const user = await User.findOne({
+      email: email.toLowerCase(),
+    }).select("+otpHash");
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    if (user.otpPurpose !== "password_reset") {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid OTP request",
+      });
+    }
+
+    if (!user.otpExpiresAt || Date.now() > user.otpExpiresAt) {
+      return res.status(400).json({
+        success: false,
+        message: "OTP expired",
+      });
+    }
+
+    const valid = verifyOTP(otp, user.otpHash);
+
+    if (!valid) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid OTP",
+      });
+    }
+
+    // Create temporary reset token
+
+    const resetToken = crypto.randomBytes(32).toString("hex");
+
+    user.resetPasswordToken = crypto
+      .createHash("sha256")
+      .update(resetToken)
+      .digest("hex");
+
+    user.resetPasswordExpires = Date.now() + 15 * 60 * 1000;
+
+    user.otpHash = null;
+    user.otpExpiresAt = null;
+    user.otpPurpose = null;
+
+    await user.save();
+
+    return res.json({
+      success: true,
+      message: "OTP verified",
+      resetToken,
+    });
+  } catch (err) {
+    console.log(err);
+
+    res.status(500).json({
+      success: false,
+      message: "OTP verification failed",
+    });
+  }
+};
+
+exports.resetPassword = async (req, res) => {
+  try {
+    const { token, password, confirmPassword } = req.body;
+
+    if (!token || !password || !confirmPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "All fields are required",
+      });
+    }
+
+    if (password !== confirmPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "Passwords do not match",
+      });
+    }
+
+    if (password.length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: "Password must be at least 8 characters",
+      });
+    }
+
+    const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+
+    const user = await User.findOne({
+      resetPasswordToken: hashedToken,
+      resetPasswordExpires: {
+        $gt: Date.now(),
+      },
+    }).select("+password");
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid or expired reset token",
+      });
+    }
+
+    user.password = await bcrypt.hash(password, 10);
+
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+
+    await user.save();
+
+    await createNotification({
+      userId: user._id,
+      title: "Password Reset Successful",
+      message: "Your password has been reset successfully.",
+      category: "system",
+      email: user.email,
+    });
+
+    return res.json({
+      success: true,
+      message: "Password reset successfully",
+    });
+  } catch (err) {
+    console.log(err);
+
+    res.status(500).json({
+      success: false,
+      message: "Password reset failed",
     });
   }
 };
