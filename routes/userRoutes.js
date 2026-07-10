@@ -44,7 +44,7 @@ router.delete("/delete-account", protect, deleteAccount);
 
 router.post("/transaction-pin/send-otp", sendTransactionPinOtp);
 
-router.post("/transaction-pin/verify-otp", verifyTransactionPinOtp);
+router.post("/verify-transaction-pin-otp", verifyTransactionPinOtp);
 
 router.put("/transaction-pin/reset", protect, resetTransactionPin);
 

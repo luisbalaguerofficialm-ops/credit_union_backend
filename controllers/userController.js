@@ -4,8 +4,15 @@ const Notification = require("../models/Notification");
 const Wallet = require("../models/Wallet");
 const { uploadToCloudinary } = require("../utils/cloudinary");
 const bcrypt = require("bcryptjs");
-const { sendEmail } = require("../utils/notify");
+const { sendEmail, sendOTP } = require("../utils/notify");
 const { createNotification } = require("./notificationController");
+
+const {
+  generateOTP,
+  hashOTP,
+  verifyOTP,
+  getOTPExpiry,
+} = require("../utils/otp");
 
 /* ===============================
    GET USER PROFILE (NEW)
@@ -511,9 +518,19 @@ exports.changeTransactionPin = async (req, res) => {
   }
 };
 
+// ===============================
+// SEND TRANSACTION PIN RESET OTP
+// ===============================
 exports.sendTransactionPinOtp = async (req, res) => {
   try {
     const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: "Email is required",
+      });
+    }
 
     const user = await User.findOne({
       email: email.toLowerCase(),
@@ -528,9 +545,12 @@ exports.sendTransactionPinOtp = async (req, res) => {
 
     const otp = generateOTP();
 
+    console.log("Transaction PIN OTP:", otp);
+
     user.otpHash = hashOTP(otp);
-    user.otpExpiresAt = Date.now() + 5 * 60 * 1000;
+    user.otpExpiresAt = getOTPExpiry();
     user.otpPurpose = "reset_transaction_pin";
+    user.transactionPinResetVerified = false;
 
     await user.save();
 
@@ -540,27 +560,37 @@ exports.sendTransactionPinOtp = async (req, res) => {
       otp,
     });
 
-    res.json({
+    return res.status(200).json({
       success: true,
-      message: "OTP sent successfully",
+      message: "Transaction PIN reset OTP sent successfully",
     });
   } catch (err) {
-    console.log(err);
+    console.error("Send Transaction PIN OTP Error:", err);
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Failed to send OTP",
     });
   }
 };
 
+// ===============================
+// VERIFY TRANSACTION PIN RESET OTP
+// ===============================
 exports.verifyTransactionPinOtp = async (req, res) => {
   try {
     const { email, otp } = req.body;
 
+    if (!email || !otp) {
+      return res.status(400).json({
+        success: false,
+        message: "Email and OTP are required",
+      });
+    }
+
     const user = await User.findOne({
       email: email.toLowerCase(),
-    });
+    }).select("+otpHash");
 
     if (!user) {
       return res.status(404).json({
@@ -576,14 +606,21 @@ exports.verifyTransactionPinOtp = async (req, res) => {
       });
     }
 
-    if (Date.now() > user.otpExpiresAt) {
+    if (!user.otpExpiresAt || new Date() > new Date(user.otpExpiresAt)) {
       return res.status(400).json({
         success: false,
         message: "OTP expired",
       });
     }
 
-    const valid = verifyOTP(otp, user.otpHash);
+    if (!user.otpHash) {
+      return res.status(400).json({
+        success: false,
+        message: "OTP not found",
+      });
+    }
+
+    const valid = verifyOTP(otp.toString(), user.otpHash);
 
     if (!valid) {
       return res.status(400).json({
@@ -592,28 +629,29 @@ exports.verifyTransactionPinOtp = async (req, res) => {
       });
     }
 
+    // Allow user to reset transaction PIN
     user.transactionPinResetVerified = true;
 
+    // Remove OTP data
     user.otpHash = null;
     user.otpExpiresAt = null;
     user.otpPurpose = null;
 
     await user.save();
 
-    res.json({
+    return res.status(200).json({
       success: true,
-      message: "OTP verified",
+      message: "OTP verified successfully",
     });
   } catch (err) {
-    console.log(err);
+    console.error("Verify Transaction PIN OTP Error:", err);
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Verification failed",
     });
   }
 };
-
 exports.resetTransactionPin = async (req, res) => {
   try {
     const { newPin, confirmPin } = req.body;
@@ -641,14 +679,16 @@ exports.resetTransactionPin = async (req, res) => {
       });
     }
 
-    if (!/^\\d{4}$/.test(newPin)) {
+    const pin = String(newPin);
+
+    if (!/^\d{4}$/.test(pin)) {
       return res.status(400).json({
         success: false,
         message: "PIN must be exactly 4 digits",
       });
     }
 
-    user.pinHash = await bcrypt.hash(newPin, 10);
+    user.pinHash = await bcrypt.hash(pin, 10);
 
     user.transactionPinResetVerified = false;
 

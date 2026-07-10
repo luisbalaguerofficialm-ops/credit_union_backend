@@ -664,7 +664,28 @@ exports.forgotPassword = async (req, res) => {
 
 exports.resetPassword = async (req, res) => {
   try {
-    const { token, password } = req.body;
+    const { token, password, confirmPassword } = req.body;
+
+    if (!token || !password || !confirmPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "Token, password and confirm password are required",
+      });
+    }
+
+    if (password !== confirmPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "Passwords do not match",
+      });
+    }
+
+    if (password.length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: "Password must be at least 8 characters",
+      });
+    }
 
     const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
 
@@ -685,10 +706,12 @@ exports.resetPassword = async (req, res) => {
 
     user.password = await bcrypt.hash(password, 10);
 
+    // Remove reset token after successful reset
     user.resetPasswordToken = undefined;
     user.resetPasswordExpires = undefined;
 
     await user.save();
+
     await createNotification({
       userId: user._id,
       title: "Password Reset Successful",
@@ -697,14 +720,14 @@ exports.resetPassword = async (req, res) => {
       email: user.email,
     });
 
-    res.json({
+    return res.status(200).json({
       success: true,
       message: "Password reset successfully",
     });
   } catch (err) {
-    console.log(err);
+    console.error("Reset Password Error:", err);
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Password reset failed",
     });

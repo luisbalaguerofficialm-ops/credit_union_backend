@@ -160,7 +160,7 @@ const UserSchema = new mongoose.Schema(
 
     otpExpiresAt: {
       type: Date,
-      select: false,
+      default: null,
     },
 
     otpPurpose: {
@@ -170,7 +170,7 @@ const UserSchema = new mongoose.Schema(
         "password_reset",
         "kyc",
         "email_verify",
-        "transaction-pin-reset",
+        "reset_transaction_pin",
       ],
     },
 
