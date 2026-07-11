@@ -7,9 +7,12 @@ const {
   getSupportMessages,
   sendSupportMessage,
   markSupportMessagesRead,
+  contactUs,
 } = require("../controllers/supportMessage");
 
 const { protect } = require("../middlewares/authMiddleware");
+
+router.post("/contact", contactUs);
 
 // Create conversation (optional)
 router.post("/conversation", protect, createSupportConversation);

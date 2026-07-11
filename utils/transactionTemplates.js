@@ -1,6 +1,6 @@
 // utils/transactionTemplates.js
 
-const BANK_NAME = "Credit Union Bank";
+const BANK_NAME = "America Bank";
 
 const LOGO_URL =
   process.env.BANK_LOGO_URL ||

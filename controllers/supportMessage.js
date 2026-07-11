@@ -1,5 +1,98 @@
 const SupportConversation = require("../models/SupportConversation");
 const SupportMessage = require("../models/SupportMessage");
+const Contact = require("../models/Contact");
+const { sendEmail } = require("../utils/notify");
+
+exports.contactUs = async (req, res) => {
+  try {
+    const { fullName, email, subject, message } = req.body;
+
+    if (!fullName || !email || !subject || !message) {
+      return res.status(400).json({
+        success: false,
+        message: "All fields are required",
+      });
+    }
+
+    const contact = await Contact.create({
+      fullName,
+      email: email.toLowerCase(),
+      subject,
+      message,
+    });
+
+    // Email to Admin
+    await sendEmail({
+      to: process.env.MAIL_FROM,
+      subject: `New Contact Message - ${subject}`,
+      html: `
+        <h2>New Contact Message</h2>
+
+        <p><strong>Name:</strong> ${fullName}</p>
+
+        <p><strong>Email:</strong> ${email}</p>
+
+        <p><strong>Subject:</strong> ${subject}</p>
+
+        <hr>
+
+        <p>${message}</p>
+      `,
+    });
+
+    // Auto Reply
+    await sendEmail({
+      to: email,
+      subject: "We've received your message",
+      html: `
+      <div style="font-family:Arial;padding:30px">
+
+        <h2>Hello ${fullName},</h2>
+
+        <p>
+        Thank you for contacting Credit Union.
+        </p>
+
+        <p>
+        We've received your message regarding
+        <strong>${subject}</strong>.
+        </p>
+
+        <p>
+        Our support team will respond within
+        24 hours.
+        </p>
+
+        <br>
+
+        <p>
+        Thank you for banking with us.
+        </p>
+
+        <br>
+
+        <strong>
+        America Bank Support
+        </strong>
+
+      </div>
+      `,
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: "Message sent successfully",
+      contact,
+    });
+  } catch (err) {
+    console.log(err);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to send message",
+    });
+  }
+};
 
 // ========================================
 // POST /api/support/conversation
