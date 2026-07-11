@@ -2,7 +2,7 @@ const BANK_NAME = "Credit Union Bank";
 
 const LOGO_URL =
   process.env.BANK_LOGO_URL ||
-  "https://res.cloudinary.com/dvthnscx7/image/upload/v1768231460/images_p4tgmy.png";
+  "https://res.cloudinary.com/dikpj9nfr/image/upload/v1783792107/america_bank_qhmtrw.png";
 
 const baseLayout = ({ title, body }) => `
 <!DOCTYPE html>

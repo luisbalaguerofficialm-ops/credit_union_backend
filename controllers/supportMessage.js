@@ -115,7 +115,7 @@ exports.createSupportConversation = async (req, res) => {
         conversation: conversation._id,
         sender: "Support",
         message:
-          "Hello! I'm Sarah. Welcome to Credit Bank Support. How may I assist you today?",
+          "Hello!... Welcome to America Bank Support. How may I assist you today?",
       });
     }
 
@@ -153,7 +153,7 @@ exports.getSupportConversation = async (req, res) => {
         conversation: conversation._id,
         sender: "Support",
         message:
-          "Hello! I'm Sarah. Welcome to Credit Bank Support. How may I assist you today?",
+          "Hello! . Welcome to America Bank Support. How may I assist you today?",
       });
     }
 

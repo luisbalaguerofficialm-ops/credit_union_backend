@@ -216,7 +216,7 @@ exports.registerUser = async (req, res) => {
 
           <div style="text-align:center">
             <img
-              src="https://res.cloudinary.com/dvthnscx7/image/upload/v1768231460/images_p4tgmy.png"
+              src="https://res.cloudinary.com/dikpj9nfr/image/upload/v1783792163/america_bank2_zlryq6.png"
               width="160"
             />
           </div>
