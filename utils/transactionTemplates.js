@@ -4,7 +4,7 @@ const BANK_NAME = "America Bank";
 
 const LOGO_URL =
   process.env.BANK_LOGO_URL ||
-  "https://res.cloudinary.com/dikpj9nfr/image/upload/v1783792107/america_bank_qhmtrw.png";
+  "https://res.cloudinary.com/dikpj9nfr/image/upload/v1783792163/america_bank2_zlryq6.png";
 
 /* ============================
    SAFE NUMBER FORMATTER
@@ -213,9 +213,6 @@ const recipientIncomingTransferTemplate = ({
     `,
   });
 
-
-
-
 /* ==================================
    SMS TEMPLATES
 ================================== */
@@ -227,7 +224,7 @@ const transactionAlertSMS = ({
   amount = 0,
   balance = 0,
   currency = "$",
-  status = "Completed", 
+  status = "Completed",
 }) => {
   return `${BANK_NAME}
 
@@ -389,7 +386,6 @@ This code expires in ${expires} minutes.
 
 DO NOT share this code with anyone.`;
 };
-
 
 module.exports = {
   transactionAlertTemplate,
