@@ -191,7 +191,7 @@ exports.registerUser = async (req, res) => {
       userId: user._id,
       title: "Welcome to Credit Union",
       message:
-        "Your account has been created successfully. Welcome to Credit Union.",
+        "Your account has been created successfully. Welcome to America Bank.",
       category: "system",
       email: user.email,
       metadata: {
@@ -210,7 +210,7 @@ exports.registerUser = async (req, res) => {
 
     await sendEmail({
       to: user.email,
-      subject: "Welcome to Credit Union Bank",
+      subject: "Welcome to America Bank",
       html: `
         <div style="max-width:600px;margin:auto;font-family:Arial">
 
@@ -243,7 +243,7 @@ exports.registerUser = async (req, res) => {
 
           <small>
             © ${new Date().getFullYear()}
-            Credit Union Bank
+          America Bank
           </small>
 
         </div>

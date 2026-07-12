@@ -446,7 +446,7 @@ exports.changeTransactionPin = async (req, res) => {
       <img
         src="https://res.cloudinary.com/dvthnscx7/image/upload/v1768231460/images_p4tgmy.png"
         width="150"
-        alt="Credit Union Bank"
+        alt="America Bank"
       />
     </div>
 
@@ -497,7 +497,7 @@ exports.changeTransactionPin = async (req, res) => {
     <hr>
 
     <small>
-      © ${new Date().getFullYear()} Credit Union Bank. All rights reserved.
+      © ${new Date().getFullYear()} America Bank. All rights reserved.
     </small>
 
   </div>
@@ -714,7 +714,7 @@ exports.resetTransactionPin = async (req, res) => {
       <img
         src="https://res.cloudinary.com/dvthnscx7/image/upload/v1768231460/images_p4tgmy.png"
         width="150"
-        alt="Credit Union Bank"
+        alt="America Bank"
       />
     </div>
 
