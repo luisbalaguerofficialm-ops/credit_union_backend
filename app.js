@@ -17,8 +17,9 @@ const server = http.createServer(app);
 ============================== */
 const io = new Server(server, {
   cors: {
-    origin: "*",
+    origin: [process.env.USER_FRONTEND_URL, process.env.ADMIN_FRONTEND_URL],
     methods: ["GET", "POST"],
+    credentials: true,
   },
 });
 
@@ -75,7 +76,17 @@ io.on("connection", (socket) => {
 /* ==============================
    GLOBAL MIDDLEWARE
 ============================== */
-app.use(cors());
+const allowedOrigins = [
+  process.env.USER_FRONTEND_URL,
+  process.env.ADMIN_FRONTEND_URL,
+];
+
+app.use(
+  cors({
+    origin: allowedOrigins,
+    credentials: true,
+  }),
+);
 app.use(express.json());
 
 /* ==============================

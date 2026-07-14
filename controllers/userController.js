@@ -331,6 +331,10 @@ exports.getDashboardStats = async (req, res) => {
       totalWithdrawals,
       totalTransfers,
 
+      transferVolume,
+      depositVolume,
+      withdrawalVolume,
+
       failedTransactions,
 
       pendingFundingRequests,
@@ -373,14 +377,69 @@ exports.getDashboardStats = async (req, res) => {
       Transaction.countDocuments({
         type: "Deposit",
       }),
+      Transaction.aggregate([
+        {
+          $match: {
+            type: "Deposit",
+            status: {
+              $in: ["Successful", "Completed"],
+            },
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            total: {
+              $sum: "$amount",
+            },
+          },
+        },
+      ]),
 
       Transaction.countDocuments({
         type: "Withdrawal",
       }),
+      Transaction.aggregate([
+        {
+          $match: {
+            type: "Withdrawal",
+            status: {
+              $in: ["Successful", "Completed"],
+            },
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            total: {
+              $sum: "$amount",
+            },
+          },
+        },
+      ]),
 
       Transaction.countDocuments({
         type: "Transfer",
       }),
+
+      Transaction.aggregate([
+        {
+          $match: {
+            type: "Transfer",
+            status: {
+              $in: ["Successful", "Completed"],
+            },
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            total: {
+              $sum: "$amount",
+            },
+          },
+        },
+      ]),
 
       Transaction.countDocuments({
         status: "Failed",
@@ -425,6 +484,12 @@ exports.getDashboardStats = async (req, res) => {
       timeAgo: timeSince(txn.createdAt),
     }));
 
+    const transferTotal = transferVolume[0]?.total || 0;
+
+    const depositTotal = depositVolume[0]?.total || 0;
+
+    const withdrawalTotal = withdrawalVolume[0]?.total || 0;
+
     return res.status(200).json({
       success: true,
       data: {
@@ -433,7 +498,8 @@ exports.getDashboardStats = async (req, res) => {
           activeUsers,
           suspendedUsers,
           pendingUsers,
-
+          pendingFundingRequests,
+          pendingCheckDeposits,
           totalAdmins,
           totalManagers,
           totalSuperAdmins,
@@ -444,9 +510,15 @@ exports.getDashboardStats = async (req, res) => {
         transactions: {
           totalTransactions,
           todayTransactions,
+
           totalDeposits,
           totalWithdrawals,
           totalTransfers,
+
+          transferVolume: transferTotal,
+          depositVolume: depositTotal,
+          withdrawalVolume: withdrawalTotal,
+
           failedTransactions,
         },
 
