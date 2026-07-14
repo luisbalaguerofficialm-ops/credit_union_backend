@@ -11,7 +11,7 @@ module.exports = async (io, userId) => {
 
   const transactions = await Transaction.find({ user: userId })
     .sort({ createdAt: -1 })
-    .limit(10);
+    .limit(4);
 
   const unreadCount = await Notification.countDocuments({
     user: userId,

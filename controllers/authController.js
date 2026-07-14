@@ -185,6 +185,7 @@ exports.registerUser = async (req, res) => {
       zipcode,
       choosedAccount,
       profileImage: profileImageUrl,
+      role: "user",
     });
 
     await createNotification({
@@ -560,6 +561,41 @@ exports.verifyOtpController = async (req, res) => {
   } catch (err) {
     console.error("Verify OTP Error:", err);
     res.status(500).json({ message: "OTP verification failed" });
+  }
+};
+
+exports.createAdmin = async (req, res) => {
+  try {
+    const { name, email, password, role } = req.body;
+
+    const exists = await Admin.findOne({ email });
+    if (exists) {
+      return res.status(400).json({ message: "Admin already exists" });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const admin = await Admin.create({
+      name,
+      email,
+      password: hashedPassword,
+      role,
+    });
+
+    res.status(201).json({
+      success: true,
+      admin: {
+        id: admin._id,
+        name: admin.name,
+        email: admin.email,
+        role: admin.role,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Failed to create admin",
+      error: error.message,
+    });
   }
 };
 

@@ -1,8 +1,12 @@
 // middlewares/authMiddleware.js
+
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const TokenBlacklist = require("../models/TokenBlacklist");
 
+// =====================================
+// AUTHENTICATION
+// =====================================
 async function protect(req, res, next) {
   try {
     const authHeader = req.headers.authorization;
@@ -20,6 +24,7 @@ async function protect(req, res, next) {
     // CHECK BLACKLIST
     // ============================
     const blacklisted = await TokenBlacklist.findOne({ token });
+
     if (blacklisted) {
       return res.status(401).json({
         success: false,
@@ -33,7 +38,10 @@ async function protect(req, res, next) {
       // ============================
       const payload = jwt.verify(token, process.env.JWT_SECRET);
 
-      const user = await User.findById(payload.id).select("_id role email");
+      const user = await User.findById(payload.id).select(
+        "_id role email firstName lastName",
+      );
+
       if (!user) {
         return res.status(401).json({
           success: false,
@@ -41,18 +49,19 @@ async function protect(req, res, next) {
         });
       }
 
-      // 🔥 FIX: always attach a plain object
       req.user = {
         _id: user._id,
         id: user._id,
         role: user.role,
         email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
       };
 
       return next();
     } catch (err) {
       // ============================
-      // ACCESS TOKEN EXPIRED → TRY REFRESH
+      // ACCESS TOKEN EXPIRED
       // ============================
       if (err.name !== "TokenExpiredError") {
         return res.status(401).json({
@@ -62,6 +71,7 @@ async function protect(req, res, next) {
       }
 
       const refreshToken = req.cookies?.refreshToken;
+
       if (!refreshToken) {
         return res.status(401).json({
           success: false,
@@ -69,10 +79,8 @@ async function protect(req, res, next) {
         });
       }
 
-      // ============================
-      // VERIFY REFRESH TOKEN
-      // ============================
       let refreshPayload;
+
       try {
         refreshPayload = jwt.verify(
           refreshToken,
@@ -86,7 +94,7 @@ async function protect(req, res, next) {
       }
 
       const user = await User.findById(refreshPayload.id).select(
-        "_id role email refreshToken",
+        "_id role email firstName lastName refreshToken",
       );
 
       if (!user || user.refreshToken !== refreshToken) {
@@ -100,25 +108,32 @@ async function protect(req, res, next) {
       // ISSUE NEW ACCESS TOKEN
       // ============================
       const newAccessToken = jwt.sign(
-        { id: user._id, role: user.role },
+        {
+          id: user._id,
+          role: user.role,
+        },
         process.env.JWT_SECRET,
-        { expiresIn: "15m" },
+        {
+          expiresIn: "15m",
+        },
       );
 
       res.setHeader("x-access-token", newAccessToken);
 
-      // 🔥 FIX AGAIN
       req.user = {
         _id: user._id,
         id: user._id,
         role: user.role,
         email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
       };
 
       next();
     }
   } catch (error) {
     console.error("Auth Middleware Error:", error);
+
     return res.status(401).json({
       success: false,
       message: "Unauthorized",
@@ -126,4 +141,51 @@ async function protect(req, res, next) {
   }
 }
 
-module.exports = { protect };
+// =====================================
+// GENERIC ROLE AUTHORIZATION
+// =====================================
+const authorize = (...roles) => {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized",
+      });
+    }
+
+    if (!roles.includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied",
+      });
+    }
+
+    next();
+  };
+};
+
+// =====================================
+// READY-MADE ROLE MIDDLEWARES
+// =====================================
+const isAdmin = authorize("admin");
+
+const isManager = authorize("manager");
+
+const isSuperAdmin = authorize("superadmin");
+
+const isAdminOrManager = authorize("admin", "manager");
+
+const isAdminOrSuperAdmin = authorize("admin", "superadmin");
+
+const isStaff = authorize("manager", "admin", "superadmin");
+
+module.exports = {
+  protect,
+  authorize,
+  isAdmin,
+  isManager,
+  isSuperAdmin,
+  isAdminOrManager,
+  isAdminOrSuperAdmin,
+  isStaff,
+};

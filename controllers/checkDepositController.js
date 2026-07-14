@@ -4,6 +4,7 @@ const User = require("../models/User");
 const emitDashboardUpdate = require("../utils/emitDashboardUpdate");
 const { uploadToCloudinary } = require("../utils/cloudinary");
 const { sendEmail } = require("../utils/notify");
+const Wallet = require("../models/Wallet");
 
 // ======================================
 // CREATE CHECK DEPOSIT REQUEST
@@ -201,6 +202,219 @@ exports.getMyCheckDeposits = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to fetch check deposits.",
+    });
+  }
+};
+
+exports.getAllCheckDeposits = async (req, res) => {
+  try {
+    const deposits = await CheckDeposit.find()
+      .populate("user", "firstName lastName email accountNumber profileImage")
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: deposits.length,
+      deposits,
+    });
+  } catch (err) {
+    console.error(err);
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch check deposits.",
+    });
+  }
+};
+
+exports.approveCheckDeposit = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const deposit = await CheckDeposit.findById(id);
+
+    if (!deposit) {
+      return res.status(404).json({
+        success: false,
+        message: "Check deposit not found.",
+      });
+    }
+
+    if (!["Pending", "Under Review"].includes(deposit.status)) {
+      return res.status(400).json({
+        success: false,
+        message: "This check has already been processed.",
+      });
+    }
+
+    const user = await User.findById(deposit.user);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found.",
+      });
+    }
+
+    const wallet = await Wallet.findOne({
+      user: user._id,
+    });
+
+    if (!wallet) {
+      return res.status(404).json({
+        success: false,
+        message: "Wallet not found.",
+      });
+    }
+
+    // Credit wallet
+    await wallet.addFunds(deposit.amount, "admin");
+
+    deposit.status = "Approved";
+    deposit.reviewedAt = new Date();
+    deposit.reviewedBy = req.user._id;
+    deposit.depositedAt = new Date();
+
+    await deposit.save();
+
+    await createNotification({
+      userId: user._id,
+      title: "Check Deposit Approved",
+      message: `Your check deposit of $${deposit.amount.toLocaleString()} has been approved and credited to your account.`,
+      category: "transaction",
+      email: user.email,
+      phone: user.phone,
+    });
+
+    if (user.email) {
+      await sendEmail({
+        to: user.email,
+        subject: "Check Deposit Approved",
+        html: `
+            <h2>Deposit Approved</h2>
+
+            <p>Hello ${user.firstName},</p>
+
+            <p>
+              Your mobile check deposit has been approved.
+            </p>
+
+            <p>
+              Amount:
+              <strong>$${deposit.amount.toLocaleString()}</strong>
+            </p>
+
+            <p>
+              The funds are now available in your account.
+            </p>
+        `,
+      });
+    }
+
+    const io = req.app.get("io");
+
+    if (io) {
+      await emitDashboardUpdate(io, user._id);
+
+      io.to("admin-room").emit("check-deposit:approved", deposit);
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Check approved successfully.",
+      deposit,
+      walletBalance: wallet.balance,
+    });
+  } catch (err) {
+    console.error(err);
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to approve check deposit.",
+    });
+  }
+};
+
+exports.rejectCheckDeposit = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const { reason } = req.body;
+
+    const deposit = await CheckDeposit.findById(id);
+
+    if (!deposit) {
+      return res.status(404).json({
+        success: false,
+        message: "Check deposit not found.",
+      });
+    }
+
+    if (deposit.status !== "Pending") {
+      return res.status(400).json({
+        success: false,
+        message: "This check has already been processed.",
+      });
+    }
+
+    const user = await User.findById(deposit.user);
+
+    deposit.status = "Rejected";
+    deposit.reviewedAt = new Date();
+    deposit.reviewedBy = req.user._id;
+    deposit.rejectionReason = reason || "Rejected by administrator";
+
+    await deposit.save();
+
+    await createNotification({
+      userId: user._id,
+      title: "Check Deposit Rejected",
+      message: `Your mobile check deposit of $${deposit.amount.toLocaleString()} was rejected.`,
+      category: "transaction",
+      email: user.email,
+      phone: user.phone,
+    });
+
+    if (user.email) {
+      await sendEmail({
+        to: user.email,
+        subject: "Check Deposit Rejected",
+        html: `
+          <h2>Deposit Rejected</h2>
+
+          <p>Hello ${user.firstName},</p>
+
+          <p>
+            Unfortunately your mobile check deposit could not be approved.
+          </p>
+
+          <p>
+            Reason:
+            <strong>${reason || "Rejected by administrator"}</strong>
+          </p>
+        `,
+      });
+    }
+
+    const io = req.app.get("io");
+
+    if (io) {
+      await emitDashboardUpdate(io, user._id);
+
+      io.to("admin-room").emit("check-deposit:rejected", deposit);
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Check deposit rejected.",
+      deposit,
+    });
+  } catch (err) {
+    console.error(err);
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to reject check deposit.",
     });
   }
 };

@@ -86,3 +86,202 @@ exports.getMyFundingRequests = async (req, res) => {
     });
   }
 };
+
+// ======================================
+// GET ALL FUNDING REQUESTS (ADMIN)
+// ======================================
+exports.getAllFundingRequests = async (req, res) => {
+  try {
+    const requests = await FundingRequest.find()
+      .populate("user", "firstName lastName email accountNumber")
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: requests.length,
+      requests,
+    });
+  } catch (error) {
+    console.error("Get Funding Requests:", error);
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch funding requests.",
+    });
+  }
+};
+
+// ======================================
+// APPROVE FUNDING REQUEST
+// ======================================
+exports.approveFundingRequest = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reviewNote } = req.body;
+
+    const request = await FundingRequest.findById(id).populate("user");
+
+    if (!request) {
+      return res.status(404).json({
+        success: false,
+        message: "Funding request not found.",
+      });
+    }
+
+    if (request.status !== "pending") {
+      return res.status(400).json({
+        success: false,
+        message: "This funding request has already been processed.",
+      });
+    }
+
+    // =====================================
+    // FIND OR CREATE WALLET
+    // =====================================
+
+    let wallet = await Wallet.findOne({
+      user: request.user._id,
+    });
+
+    if (!wallet) {
+      wallet = await Wallet.create({
+        user: request.user._id,
+      });
+    }
+
+    await wallet.addFunds(request.amount, req.user.role);
+
+    // =====================================
+    // CREATE TRANSACTION
+    // =====================================
+
+    await Transaction.create({
+      user: request.user._id,
+      amount: request.amount,
+      type: "Deposit",
+      status: "Successful",
+      category: "Funding",
+      narration: "Bank Funding Request Approved",
+    });
+
+    // =====================================
+    // UPDATE REQUEST
+    // =====================================
+
+    request.status = "approved";
+    request.reviewNote = reviewNote || "";
+    request.reviewedAt = new Date();
+    request.reviewedBy = req.user._id;
+    request.reviewedRole = req.user.role;
+
+    await request.save();
+
+    // =====================================
+    // NOTIFICATION
+    // =====================================
+
+    await createNotification({
+      userId: request.user._id,
+      title: "Funding Request Approved",
+      message: `Your funding request of $${request.amount.toLocaleString()} has been approved and credited to your account.`,
+      category: "funding",
+      email: request.user.email,
+    });
+
+    // =====================================
+    // SOCKETS
+    // =====================================
+
+    const io = req.app.get("io");
+
+    if (io) {
+      io.to("admin-room").emit("funding-request:approved", request);
+
+      await emitDashboardUpdate(io, request.user._id);
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Funding request approved successfully.",
+      request,
+    });
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to approve funding request.",
+    });
+  }
+};
+
+// ======================================
+// REJECT FUNDING REQUEST
+// ======================================
+exports.rejectFundingRequest = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reviewNote } = req.body;
+
+    const request = await FundingRequest.findById(id).populate("user");
+
+    if (!request) {
+      return res.status(404).json({
+        success: false,
+        message: "Funding request not found.",
+      });
+    }
+
+    if (request.status !== "pending") {
+      return res.status(400).json({
+        success: false,
+        message: "This funding request has already been processed.",
+      });
+    }
+
+    request.status = "rejected";
+    request.reviewNote = reviewNote || "";
+    request.reviewedAt = new Date();
+    request.reviewedBy = req.user._id;
+    request.reviewedRole = req.user.role;
+
+    await request.save();
+
+    // =====================================
+    // NOTIFICATION
+    // =====================================
+
+    await createNotification({
+      userId: request.user._id,
+      title: "Funding Request Rejected",
+      message: `Unfortunately your funding request of $${request.amount.toLocaleString()} was rejected.`,
+      category: "funding",
+      email: request.user.email,
+    });
+
+    // =====================================
+    // SOCKETS
+    // =====================================
+
+    const io = req.app.get("io");
+
+    if (io) {
+      io.to("admin-room").emit("funding-request:rejected", request);
+
+      await emitDashboardUpdate(io, request.user._id);
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Funding request rejected successfully.",
+      request,
+    });
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to reject funding request.",
+    });
+  }
+};

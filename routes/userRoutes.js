@@ -1,12 +1,13 @@
 // routes/userRoutes.js
 const express = require("express");
 const router = express.Router();
-const { protect } = require("../middlewares/authMiddleware");
+const { protect, authorize } = require("../middlewares/authMiddleware");
 const upload = require("../middlewares/upload");
 
 const {
   getUserProfile,
   getDashboard,
+  getDashboardStats,
   changePassword,
   changeTransactionPin,
   updatePreferences,
@@ -22,6 +23,12 @@ const {
 router.get("/profile", protect, getUserProfile);
 
 router.get("/dashboard", protect, getDashboard);
+router.get(
+  "/admin/dashboard",
+  protect,
+  authorize("superadmin", "admin", "manager"),
+  getDashboardStats,
+);
 
 router.put(
   "/update-profile-image",

@@ -42,6 +42,61 @@ const NotificationSchema = new mongoose.Schema(
       index: true,
     },
 
+    // Target audience
+    target: {
+      type: String,
+      enum: ["All Users", "Verified Users", "Inactive Users", "Specific User"],
+      default: "All Users",
+    },
+
+    title: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
+    channels: [
+      {
+        type: String,
+        enum: ["InApp", "SMS", "Email"],
+      },
+    ],
+
+    specificUserId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+
+    // Delivery status
+    status: {
+      type: String,
+      enum: ["Pending", "Delivered", "Failed"],
+      default: "Pending",
+    },
+
+    sentToCount: {
+      type: Number,
+      default: 0,
+    },
+
+    deliveryTime: {
+      type: Date,
+      default: null,
+    },
+
+    readBy: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
+
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Admin",
+    },
+
     // Optional extra data
     metadata: {
       type: Object,

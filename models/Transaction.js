@@ -16,6 +16,15 @@ const TransactionSchema = new mongoose.Schema(
       index: true,
     },
 
+    transferType: {
+      type: String,
+      enum: ["Domestic", "International", "Wire"],
+      required: function () {
+        return this.type === "Transfer";
+      },
+      index: true,
+    },
+
     // Recipient Details
     recipientName: {
       type: String,

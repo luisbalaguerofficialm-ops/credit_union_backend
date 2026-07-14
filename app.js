@@ -97,8 +97,9 @@ const dashboardRoutes = require("./routes/dashboardRoutes");
 const pinRoutes = require("./routes/pinRoutes");
 const checkRoutes = require("./routes/checkRoutes");
 const supportRoutes = require("./routes/supportRoutes");
-
-
+const adminUserRoutes = require("./routes/adminUserRoutes");
+const systemSettingsRoutes = require("./routes/systemSettingsRoutes");
+const feeRoutes = require("./routes/feeRoutes");
 /* ==============================
    PUBLIC ROUTE
 ============================== */
@@ -128,8 +129,9 @@ app.use("/api/pin", pinRoutes);
 app.use("/uploads", express.static("uploads"));
 app.use("/api/check-deposits", checkRoutes);
 app.use("/api/support", supportRoutes);
-
-
+app.use("/api/admin", adminUserRoutes);
+app.use("/api/admin/system-settings", systemSettingsRoutes);
+app.use("/api/admin/fee", feeRoutes);
 /* ==============================
    404 HANDLER
 ============================== */

@@ -21,6 +21,7 @@ const {
 exports.createTransaction = async (req, res) => {
   try {
     const {
+      transferType,
       recipientName,
       recipientEmail,
       accountNumber,
@@ -32,7 +33,11 @@ exports.createTransaction = async (req, res) => {
       narration,
     } = req.body;
 
+    // ==================================
+    // REQUIRED FIELDS
+    // ==================================
     if (
+      !transferType ||
       !recipientName ||
       !recipientEmail ||
       !recipientCountry ||
@@ -42,90 +47,138 @@ exports.createTransaction = async (req, res) => {
       return res.status(400).json({
         success: false,
         message:
-          "Recipient name, recipient email, recipient country, bank name, and amount are required",
+          "Transfer type, recipient name, recipient email, recipient country, bank name and amount are required.",
       });
     }
 
-    // Validate Account Number OR IBAN
-    // Right now a user can submit neither one of both.
-    if (!accountNumber && !iban) {
+    // ==================================
+    // VALIDATE TRANSFER TYPE
+    // ==================================
+    const allowedTransferTypes = ["Domestic", "International", "Wire"];
+
+    if (!allowedTransferTypes.includes(transferType)) {
       return res.status(400).json({
         success: false,
-        message: "Account Number or IBAN is required",
+        message: "Invalid transfer type.",
       });
     }
 
-    // If an IBAN is provided, require SWIFT for international transfers:
-    if (iban && !swiftCode) {
-      return res.status(400).json({
-        success: false,
-        message: "SWIFT/BIC code is required for international transfers",
-      });
+    // ==================================
+    // TRANSFER TYPE VALIDATION
+    // ==================================
+    switch (transferType) {
+      case "Domestic":
+        if (!accountNumber) {
+          return res.status(400).json({
+            success: false,
+            message: "Account number is required for domestic transfers.",
+          });
+        }
+        break;
+
+      case "International":
+        if (!iban || !swiftCode) {
+          return res.status(400).json({
+            success: false,
+            message:
+              "IBAN and SWIFT code are required for international transfers.",
+          });
+        }
+        break;
+
+      case "Wire":
+        if (!swiftCode) {
+          return res.status(400).json({
+            success: false,
+            message: "SWIFT code is required for wire transfers.",
+          });
+        }
+
+        // Optional but recommended
+        if (!accountNumber && !iban) {
+          return res.status(400).json({
+            success: false,
+            message: "Account number or IBAN is required for wire transfers.",
+          });
+        }
+        break;
     }
 
-    // Chect Amount on the Account
-    const parsedAmount = parseFloat(amount);
+    // ==================================
+    // VALIDATE AMOUNT
+    // ==================================
+    const parsedAmount = Number(amount);
+
     if (isNaN(parsedAmount) || parsedAmount <= 0) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Invalid amount" });
+      return res.status(400).json({
+        success: false,
+        message: "Invalid amount.",
+      });
     }
 
-    // // ===============================
-    // // MINIMUM TRANSFER VALIDATION
-    // // ===============================
-    // if (parsedAmount < 2500) {
-    //   return res.status(400).json({
-    //     success: false,
-    //   message: `for now you can only tranfer ${wallet.currency} 2,500 and above,  `
-    //   });
-    // }
-
-    // ===============================
-    // CALCULATE TRANSFER FEE EARLY
-    // ===============================
+    // ==================================
+    // CALCULATE TRANSFER FEE
+    // ==================================
     const feeData = await calculateTransferFee(parsedAmount);
     const transferFeeAmount = feeData.fee;
 
-    // ===============================
+    // ==================================
     // GET USER & WALLET
-    // ===============================
+    // ==================================
     const user = await User.findById(req.user._id);
-    const wallet = await Wallet.findOne({ user: req.user._id });
 
-    if (!wallet || wallet.balance < parsedAmount) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Insufficient balance" });
+    const wallet = await Wallet.findOne({
+      user: req.user._id,
+    });
+
+    if (!wallet) {
+      return res.status(404).json({
+        success: false,
+        message: "Wallet not found.",
+      });
     }
 
-    // ===============================
+    // Check if balance covers transfer amount only
+    if (wallet.balance < parsedAmount) {
+      return res.status(400).json({
+        success: false,
+        message: "Insufficient balance.",
+      });
+    }
+
+    // ==================================
     // DEDUCT WALLET
-    // ===============================
+    // ==================================
     wallet.balance -= parsedAmount;
+    wallet.lastUpdatedBy = "user";
+
     await wallet.save();
 
-    // ===============================
-    // CREATE TRANSACTION (PENDING)
-    // ===============================
+    // ==================================
+    // CREATE TRANSACTION
+    // ==================================
     const transaction = await Transaction.create({
       user: user._id,
       type: "Transfer",
+      transferType,
       recipientName,
       recipientEmail,
-      accountNumber,
-      email: user.email,
-      phone: user.phone,
-      bankName,
-      iban,
-      swiftCode,
       recipientCountry,
+      bankName,
+      accountNumber:
+        transferType === "Domestic" || transferType === "Wire"
+          ? accountNumber
+          : null,
+      iban: transferType !== "Domestic" ? iban : null,
+      swiftCode: transferType !== "Domestic" ? swiftCode : null,
       amount: parsedAmount,
       status: "Pending",
       description: narration,
       transactionId: `TXN-${Date.now()}-${Math.floor(Math.random() * 100000)}`,
+metadata: {
+        transferFee: transferFeeAmount,
+      },
     });
-
     // ===============================
     // REALTIME DASHBOARD UPDATE
     // ===============================

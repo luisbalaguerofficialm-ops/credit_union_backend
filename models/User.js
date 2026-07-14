@@ -5,6 +5,13 @@ const UserSchema = new mongoose.Schema(
     // =============================
     // BASIC INFO
     // =============================
+    role: {
+      type: String,
+      enum: ["user", "manager", "admin", "superadmin"],
+      default: "user",
+      required: true,
+      index: true,
+    },
     firstName: {
       type: String,
       required: true,
@@ -107,10 +114,6 @@ const UserSchema = new mongoose.Schema(
       trim: true,
     },
 
-    kycSelfie: {
-      type: String,
-      default: "",
-    },
     state: {
       type: String,
       required: true,
@@ -150,6 +153,23 @@ const UserSchema = new mongoose.Schema(
 
     pinChangedAt: Date,
 
+    status: {
+      type: String,
+      enum: ["Pending", "Active", "Suspended", "Flagged"],
+      default: "Pending",
+    },
+
+    flagReason: String,
+
+    suspensionReason: String,
+
+    lastLogin: Date,
+
+    isEmailVerified: {
+      type: Boolean,
+      default: false,
+    },
+
     // =============================
     // OTP / VERIFICATION
     // =============================
@@ -168,7 +188,6 @@ const UserSchema = new mongoose.Schema(
       enum: [
         "login",
         "password_reset",
-        "kyc",
         "email_verify",
         "reset_transaction_pin",
       ],

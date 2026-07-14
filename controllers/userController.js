@@ -2,6 +2,8 @@ const User = require("../models/User");
 const Transaction = require("../models/Transaction");
 const Notification = require("../models/Notification");
 const Wallet = require("../models/Wallet");
+const FundingRequest = require("../models/FundingRequest");
+const CheckDeposit = require("../models/CheckDeposit");
 const { uploadToCloudinary } = require("../utils/cloudinary");
 const bcrypt = require("bcryptjs");
 const { sendEmail, sendOTP } = require("../utils/notify");
@@ -304,6 +306,184 @@ exports.getDashboard = async (req, res) => {
     });
   }
 };
+
+exports.getDashboardStats = async (req, res) => {
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const [
+      totalUsers,
+      activeUsers,
+      suspendedUsers,
+      pendingUsers,
+
+      totalAdmins,
+      totalManagers,
+      totalSuperAdmins,
+
+      wallets,
+
+      totalTransactions,
+      todayTransactions,
+
+      totalDeposits,
+      totalWithdrawals,
+      totalTransfers,
+
+      failedTransactions,
+
+      pendingFundingRequests,
+      pendingCheckDeposits,
+
+      recentTransactions,
+      notifications,
+    ] = await Promise.all([
+      User.countDocuments({ role: "user" }),
+
+      User.countDocuments({
+        role: "user",
+        status: "Active",
+      }),
+
+      User.countDocuments({
+        role: "user",
+        status: "Suspended",
+      }),
+
+      User.countDocuments({
+        role: "user",
+        status: "Pending",
+      }),
+
+      User.countDocuments({ role: "admin" }),
+
+      User.countDocuments({ role: "manager" }),
+
+      User.countDocuments({ role: "superadmin" }),
+
+      Wallet.find({}, { balance: 1 }),
+
+      Transaction.countDocuments(),
+
+      Transaction.countDocuments({
+        createdAt: { $gte: today },
+      }),
+
+      Transaction.countDocuments({
+        type: "Deposit",
+      }),
+
+      Transaction.countDocuments({
+        type: "Withdrawal",
+      }),
+
+      Transaction.countDocuments({
+        type: "Transfer",
+      }),
+
+      Transaction.countDocuments({
+        status: "Failed",
+      }),
+
+      FundingRequest.countDocuments({
+        status: "pending",
+      }),
+
+      CheckDeposit.countDocuments({
+        status: "Pending",
+      }),
+
+      Transaction.find()
+        .populate("user", "firstName lastName email")
+        .sort({ createdAt: -1 })
+        .limit(10),
+
+      Notification.find()
+        .sort({ createdAt: -1 })
+        .limit(10)
+        .populate("user", "firstName lastName"),
+    ]);
+
+    const totalWalletBalance = wallets.reduce(
+      (sum, wallet) => sum + wallet.balance,
+      0,
+    );
+
+    const recentActivities = recentTransactions.map((txn) => ({
+      message: `${txn.user?.firstName || ""} ${
+        txn.user?.lastName || ""
+      } completed a ${txn.type} of $${txn.amount.toLocaleString()}`,
+      type: txn.type,
+      status: txn.status,
+      createdAt: txn.createdAt,
+      timeAgo: timeSince(txn.createdAt),
+    }));
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        overview: {
+          totalUsers,
+          activeUsers,
+          suspendedUsers,
+          pendingUsers,
+
+          totalAdmins,
+          totalManagers,
+          totalSuperAdmins,
+
+          totalWalletBalance,
+        },
+
+        transactions: {
+          totalTransactions,
+          todayTransactions,
+          totalDeposits,
+          totalWithdrawals,
+          totalTransfers,
+          failedTransactions,
+        },
+
+        approvals: {
+          pendingFundingRequests,
+          pendingCheckDeposits,
+        },
+
+        notifications: {
+          unread: notifications.filter((n) => !n.read).length,
+          list: notifications,
+        },
+
+        recentTransactions,
+
+        recentActivities,
+      },
+    });
+  } catch (err) {
+    console.error("Dashboard Error:", err);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to load dashboard statistics.",
+    });
+  }
+};
+
+function timeSince(date) {
+  const seconds = Math.floor((Date.now() - new Date(date)) / 1000);
+
+  let interval = Math.floor(seconds / 86400);
+  if (interval >= 1) return `${interval} day${interval > 1 ? "s" : ""} ago`;
+
+  interval = Math.floor(seconds / 3600);
+  if (interval >= 1) return `${interval} hour${interval > 1 ? "s" : ""} ago`;
+
+  interval = Math.floor(seconds / 60);
+  if (interval >= 1) return `${interval} minute${interval > 1 ? "s" : ""} ago`;
+
+  return "Just now";
+}
 
 //    UPDATE PROFILE IMAGE
 exports.updateProfileImage = async (req, res) => {

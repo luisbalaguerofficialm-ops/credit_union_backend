@@ -101,6 +101,188 @@ exports.createNotification = async ({
   }
 };
 
+exports.sendNotification = async (req, res) => {
+  try {
+    const {
+      title,
+      message,
+      templateId,
+      channels = [],
+      audience = "all",
+      userId,
+      schedule = "immediate",
+      scheduledTime,
+    } = req.body;
+
+    if (!title && !templateId) {
+      return res.status(400).json({
+        success: false,
+        message: "Title or template is required",
+      });
+    }
+
+    /* ================================
+       FORMAT CHANNELS
+    ================================ */
+
+    const formattedChannels = channels.map((c) => {
+      if (c === "email") return "Email";
+      if (c === "sms") return "SMS";
+      if (c === "inApp") return "InApp";
+      return c;
+    });
+
+    /* ================================
+       AUDIENCE MAP
+    ================================ */
+
+    const audienceMap = {
+      all: "All Users",
+      verified: "Verified Users",
+      kyc_pending: "KYC Pending Users",
+      inactive: "Inactive Users",
+      specific: "Specific User",
+    };
+
+    const target = audienceMap[audience] || "All Users";
+
+    /* ================================
+       FETCH TEMPLATE
+    ================================ */
+
+    let template;
+
+    if (templateId) {
+      template = await Template.findById(templateId);
+
+      if (!template) {
+        return res.status(404).json({
+          success: false,
+          message: "Template not found",
+        });
+      }
+    }
+
+    const finalTitle = template?.subject || title;
+    const finalMessageContent = template?.content || message;
+
+    /* ================================
+       FIND USER EMAIL
+    ================================ */
+    let user = null;
+    let userEmail = null;
+
+    if (audience === "specific" && userId) {
+      user = await User.findById(userId); // ✅ FIXED
+
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: "User not found",
+        });
+      }
+
+      userEmail = user.email;
+    }
+
+    // ✅ Build full name correctly
+    const fullName = user
+      ? [user.firstName, user.lastName].filter(Boolean).join(" ")
+      : "Valued Customer";
+
+    // ✅ Generate email AFTER fetching user
+    const emailHtml = dynamicNotificationTemplate({
+      variables: {
+        user_name: fullName,
+        message: finalMessageContent,
+        subject: finalTitle,
+      },
+    });
+    /* ================================
+       SAVE NOTIFICATION
+    ================================ */
+
+    const notification = await Notification.create({
+      title: finalTitle,
+      message: finalMessageContent,
+      channels: formattedChannels,
+      target,
+      specificUserId: audience === "specific" ? userId : null,
+      status: "Delivered",
+      sentToCount: audience === "specific" ? 1 : 0,
+      deliveryTime:
+        schedule === "scheduled" ? new Date(scheduledTime) : new Date(),
+      createdBy: req.admin?.id,
+    });
+
+    /* ================================
+       SEND EMAIL
+    ================================ */
+
+    if (formattedChannels.includes("Email") && userEmail) {
+      try {
+        const emailResponse = await resend.emails.send({
+          from: FROM_EMAIL,
+          to: userEmail,
+          subject: finalTitle,
+          html: emailHtml,
+          replyTo: REPLY_TO_EMAIL,
+        });
+
+        console.log("✅ Resend response:", emailResponse);
+      } catch (emailError) {
+        console.error("❌ Email send error:", emailError);
+      }
+    }
+
+    return res.status(201).json({
+      success: true,
+      message: "Notification sent successfully",
+      notification,
+    });
+  } catch (err) {
+    console.error("Send notification error:", err);
+
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
+
+exports.getNotificationHistory = async (req, res) => {
+  try {
+    // Fetch all notifications, sorted by newest first
+    const notifications = await Notification.find()
+      .sort({ createdAt: -1 })
+      .limit(7)
+      .populate("createdBy", "name email"); // optional: populate admin name/email
+
+    // Format response for frontend table
+    const formattedNotifications = notifications.map((n) => ({
+      id: n._id,
+      title: n.title,
+      channel: n.channels.join(", "), // e.g. "Email, InApp"
+      audience: n.target,
+      sentCount: n.sentToCount || 0,
+      createdAt: n.createdAt,
+      createdBy: n.createdBy?.name || "Admin",
+      status: n.status,
+    }));
+
+    return res.status(200).json({
+      success: true,
+      notifications: formattedNotifications,
+    });
+  } catch (err) {
+    console.error("Fetch notification history error:", err);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch notification history",
+    });
+  }
+};
+
 // ===============================
 // MARK SINGLE AS READ
 // ===============================
