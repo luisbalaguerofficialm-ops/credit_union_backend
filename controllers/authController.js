@@ -341,6 +341,7 @@ exports.loginUser = async (req, res) => {
     const accessToken = jwt.sign(
       {
         id: user._id,
+        role: user.role,
       },
       process.env.JWT_SECRET,
       {
@@ -354,6 +355,7 @@ exports.loginUser = async (req, res) => {
     const refreshToken = jwt.sign(
       {
         id: user._id,
+        role: user.role,
       },
       process.env.JWT_REFRESH_SECRET,
       {
@@ -406,6 +408,7 @@ exports.loginUser = async (req, res) => {
         lastName: user.lastName,
         username: user.username,
         email: user.email,
+        role: user.role,
         accountNumber: user.accountNumber,
         choosedAccount: user.choosedAccount,
         accountType: user.accountType,

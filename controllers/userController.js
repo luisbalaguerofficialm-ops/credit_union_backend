@@ -306,7 +306,7 @@ exports.getDashboard = async (req, res) => {
     });
   }
 };
-
+// ======================================
 exports.getDashboardStats = async (req, res) => {
   try {
     const today = new Date();
@@ -394,14 +394,19 @@ exports.getDashboardStats = async (req, res) => {
         status: "Pending",
       }),
 
-      Transaction.find()
+      Transaction.find({
+        user: { $ne: null },
+      })
+        .select("type amount status transactionId createdAt user")
         .populate("user", "firstName lastName email")
-        .sort({ createdAt: -1 })
-        .limit(10),
+        .sort({
+          createdAt: -1,
+        })
+        .limit(4),
 
       Notification.find()
         .sort({ createdAt: -1 })
-        .limit(10)
+        .limit(4)
         .populate("user", "firstName lastName"),
     ]);
 
