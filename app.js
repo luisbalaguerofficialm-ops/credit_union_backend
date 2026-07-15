@@ -7,17 +7,48 @@ const http = require("http");
 const { Server } = require("socket.io");
 const cookieParser = require("cookie-parser");
 
+
 dotenv.config();
 
 const app = express();
 const server = http.createServer(app);
 
+const allowedOrigins = process.env.CLIENT_URL
+  ? process.env.CLIENT_URL.split(",").map((o) => o.trim())
+  : [
+      "http://localhost:5173",
+      "https://www.credixa.co",
+      "https://credixa.co",
+      "https://admin.credixa.co",
+    ];
+
+const corsOptions = {
+  origin: function (origin, callback) {
+    if (!origin) {
+      return callback(null, true);
+    }
+
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    console.log("❌ BLOCKED:", origin);
+
+    callback(new Error("Not allowed by CORS"));
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+};
+
+app.use(cors(corsOptions));
+app.options(/.*/, cors(corsOptions));
 /* ==============================
    SOCKET.IO SETUP
 ============================== */
 const io = new Server(server, {
   cors: {
-    origin: [process.env.USER_FRONTEND_URL, process.env.ADMIN_FRONTEND_URL],
+    origin: allowedOrigins,
     methods: ["GET", "POST"],
     credentials: true,
   },
@@ -74,27 +105,6 @@ io.on("connection", (socket) => {
 });
 
 /* ==============================
-   GLOBAL MIDDLEWARE
-============================== */
-const allowedOrigins = [
-  process.env.USER_FRONTEND_URL,
-  process.env.ADMIN_FRONTEND_URL,
-];
-
-app.use(
-  cors({
-    origin: allowedOrigins,
-    credentials: true,
-  }),
-);
-app.use(express.json());
-
-/* ==============================
-   AUTH MIDDLEWARE
-
-const { protect } = require("./middlewares/authMiddleware");
-
-/* ==============================
    ROUTES
 ============================== */
 const authRoutes = require("./routes/authRoutes");
@@ -118,17 +128,9 @@ app.get("/", (req, res) => {
   res.status(200).send("✅ API is running...");
 });
 
-/* ==============================
-   AUTH ROUTES (PUBLIC)
-============================== */
+//  PROTECTED ROUTES
+
 app.use("/api/auth", authRoutes);
-
-/* ==============================
-
-
-   PROTECTED ROUTES
-============================== */
-
 app.use("/api/users", userRoutes);
 app.use("/api/transactions", transactionRoutes);
 app.use("/api/notify", notifyRoutes);
