@@ -7,7 +7,6 @@ const http = require("http");
 const { Server } = require("socket.io");
 const cookieParser = require("cookie-parser");
 
-
 dotenv.config();
 
 const app = express();
@@ -32,8 +31,6 @@ const corsOptions = {
       return callback(null, true);
     }
 
-    console.log("❌ BLOCKED:", origin);
-
     callback(new Error("Not allowed by CORS"));
   },
   credentials: true,
@@ -43,6 +40,9 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 app.options(/.*/, cors(corsOptions));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
 /* ==============================
    SOCKET.IO SETUP
 ============================== */
