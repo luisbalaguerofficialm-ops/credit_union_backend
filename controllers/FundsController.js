@@ -40,7 +40,7 @@ exports.requestBankFunding = async (req, res) => {
       userId: req.user._id,
       title: "Funding Request Submitted",
       message: `Your funding request of $${Number(amount).toLocaleString()} has been submitted and is awaiting approval.`,
-      category: "funding",
+      category: "transaction",
       email: req.user.email,
     });
     // emit real-time update
@@ -184,7 +184,7 @@ exports.approveFundingRequest = async (req, res) => {
       userId: request.user._id,
       title: "Funding Request Approved",
       message: `Your funding request of $${request.amount.toLocaleString()} has been approved and credited to your account.`,
-      category: "funding",
+      category: "transaction",
       email: request.user.email,
     });
 
@@ -255,7 +255,7 @@ exports.rejectFundingRequest = async (req, res) => {
       userId: request.user._id,
       title: "Funding Request Rejected",
       message: `Unfortunately your funding request of $${request.amount.toLocaleString()} was rejected.`,
-      category: "funding",
+      category: "transaction",
       email: request.user.email,
     });
 

@@ -28,7 +28,7 @@ const { protect, authorize } = require("../middlewares/authMiddleware");
 router.get(
   "/users",
   protect,
-  authorize("super admin", "admin", "manager"),
+  authorize("superadmin", "admin", "manager"),
   getAllUsers,
 );
 
@@ -37,7 +37,7 @@ router.get(
 router.get(
   "/users/:id",
   protect,
-  authorize("super admin", "admin", "manager"),
+  authorize("superadmin", "admin", "manager"),
   getUserById,
 );
 
@@ -46,7 +46,7 @@ router.get(
 router.patch(
   "/users/:id",
   protect,
-  authorize("super admin", "admin"),
+  authorize("superadmin", "admin"),
   updateUser,
 );
 
@@ -55,7 +55,7 @@ router.patch(
 router.patch(
   "/users/:id/activate",
   protect,
-  authorize("super admin", "admin", "manager"),
+  authorize("superadmin", "admin", "manager"),
   activateUser,
 );
 
@@ -64,7 +64,7 @@ router.patch(
 router.patch(
   "/users/:id/suspend",
   protect,
-  authorize("super admin", "admin"),
+  authorize("superadmin", "admin"),
   suspendUser,
 );
 
@@ -77,7 +77,7 @@ router.patch(
 router.patch(
   "/users/:id/flag",
   protect,
-  authorize("super admin", "admin", "manager"),
+  authorize("superadmin", "admin", "manager"),
   flagUser,
 );
 
@@ -86,7 +86,7 @@ router.patch(
 router.patch(
   "/users/:id/unflag",
   protect,
-  authorize("super admin", "admin", "manager"),
+  authorize("superadmin", "admin", "manager"),
   unflagUser,
 );
 
@@ -99,7 +99,7 @@ router.patch(
 router.post(
   "/users/:id/credit-wallet",
   protect,
-  authorize("super admin", "admin"),
+  authorize("superadmin", "admin"),
   creditWallet,
 );
 
@@ -108,7 +108,7 @@ router.post(
 router.post(
   "/users/:id/debit-wallet",
   protect,
-  authorize("super admin", "admin"),
+  authorize("superadmin", "admin"),
   debitWallet,
 );
 
@@ -118,7 +118,7 @@ router.post(
 
 // Change user role
 // PATCH /api/admin/users/:id/role
-router.patch("/users/:id/role", protect, authorize("super admin"), changeRole);
+router.patch("/users/:id/role", protect, authorize("superadmin"), changeRole);
 
 
 // ======================================
@@ -130,7 +130,7 @@ router.patch("/users/:id/role", protect, authorize("super admin"), changeRole);
 router.get(
   "/users/statistics",
   protect,
-  authorize("super admin", "admin", "manager"),
+  authorize("superadmin", "admin", "manager"),
   getStatistics,
 );
 

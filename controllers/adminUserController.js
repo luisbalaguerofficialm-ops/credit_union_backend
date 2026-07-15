@@ -13,7 +13,7 @@ exports.getAllUsers = async (req, res) => {
   try {
     const {
       page = 1,
-      limit = 20,
+      limit = 4,
       search = "",
       status,
       accountType,

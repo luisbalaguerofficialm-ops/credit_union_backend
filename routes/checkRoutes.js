@@ -31,21 +31,21 @@ router.post(
 router.get("/", protect, getMyCheckDeposits);
 
 router.get(
-  "/admin/check-deposits",
+  "/admin",
   protect,
   authorize("manager", "admin", "superadmin"),
   getAllCheckDeposits,
 );
 
 router.patch(
-  "/admin/check-deposits/:id/approve",
+  "/admin/:id/approve",
   protect,
   authorize("manager", "admin", "superadmin"),
   approveCheckDeposit,
 );
 
 router.patch(
-  "/admin/check-deposits/:id/reject",
+  "/admin/:id/reject",
   protect,
   authorize("manager", "admin", "superadmin"),
   rejectCheckDeposit,

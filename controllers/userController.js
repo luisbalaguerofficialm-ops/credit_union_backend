@@ -317,29 +317,21 @@ exports.getDashboardStats = async (req, res) => {
       activeUsers,
       suspendedUsers,
       pendingUsers,
-
       totalAdmins,
       totalManagers,
       totalSuperAdmins,
-
       wallets,
-
       totalTransactions,
       todayTransactions,
-
       totalDeposits,
-      totalWithdrawals,
-      totalTransfers,
-
-      transferVolume,
       depositVolume,
+      totalWithdrawals,
       withdrawalVolume,
-
+      totalTransfers,
+      transferVolume,
       failedTransactions,
-
       pendingFundingRequests,
       pendingCheckDeposits,
-
       recentTransactions,
       notifications,
     ] = await Promise.all([
@@ -465,7 +457,7 @@ exports.getDashboardStats = async (req, res) => {
 
       Notification.find()
         .sort({ createdAt: -1 })
-        .limit(4)
+        .limit(7)
         .populate("user", "firstName lastName"),
     ]);
 
@@ -484,11 +476,9 @@ exports.getDashboardStats = async (req, res) => {
       timeAgo: timeSince(txn.createdAt),
     }));
 
-    const transferTotal = transferVolume[0]?.total || 0;
-
     const depositTotal = depositVolume[0]?.total || 0;
-
     const withdrawalTotal = withdrawalVolume[0]?.total || 0;
+    const transferTotal = transferVolume[0]?.total || 0;
 
     return res.status(200).json({
       success: true,

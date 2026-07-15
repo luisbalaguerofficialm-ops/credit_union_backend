@@ -9,7 +9,7 @@ const {
   rejectFundingRequest,
 } = require("../controllers/FundsController");
 
-const { protect, isStaff } = require("../middlewares/authMiddleware");
+const { protect, authorize } = require("../middlewares/authMiddleware");
 
 // ================= USER ROUTES =================
 router.post("/funding-request", protect, requestBankFunding);
@@ -22,21 +22,26 @@ router.get("/funding-request/me", protect, getMyFundingRequests);
 // =======================================
 
 // Get all funding requests
-router.get("/funding-requests", protect, isStaff, getAllFundingRequests);
+router.get(
+  "/admin/funding-requests",
+  protect,
+  authorize("manager", "admin", "superadmin"),
+  getAllFundingRequests,
+);
 
 // Approve funding request
 router.patch(
-  "/funding-requests/:id/approve",
+  "/admin/funding-requests/:id/approve",
   protect,
-  isStaff,
+  authorize("manager", "admin", "superadmin"),
   approveFundingRequest,
 );
 
 // Reject funding request
 router.patch(
-  "/funding-requests/:id/reject",
+  "/admin/funding-requests/:id/reject",
   protect,
-  isStaff,
+  authorize("manager", "admin", "superadmin"),
   rejectFundingRequest,
 );
 
