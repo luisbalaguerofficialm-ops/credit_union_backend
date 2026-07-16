@@ -90,10 +90,13 @@ exports.getMyFundingRequests = async (req, res) => {
 // ======================================
 // GET ALL FUNDING REQUESTS (ADMIN)
 // ======================================
+// ======================================
+// GET ALL FUNDING REQUESTS (ADMIN)
+// ======================================
 exports.getAllFundingRequests = async (req, res) => {
   try {
     const requests = await FundingRequest.find()
-      .populate("user", "firstName lastName email accountNumber")
+      .populate("user", "firstName lastName email profileImage accountNumber")
       .sort({ createdAt: -1 });
 
     res.status(200).json({
