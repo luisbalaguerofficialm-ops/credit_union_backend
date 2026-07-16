@@ -144,7 +144,7 @@ app.use("/api/check-deposits", checkRoutes);
 app.use("/api/support", supportRoutes);
 app.use("/api/admin", adminUserRoutes);
 app.use("/api/admin/system-settings", systemSettingsRoutes);
-app.use("/api/admin/fee", feeRoutes);
+app.use("/api/fees", feeRoutes);
 /* ==============================
    404 HANDLER
 ============================== */

@@ -21,7 +21,18 @@ exports.createFeeRule = async (req, res) => {
       if (!tiers || !Array.isArray(tiers) || tiers.length === 0) {
         return res.status(400).json({
           success: false,
-          message: "Tiered structure requires tiers array",
+          message: "Tiered structure requires tiers.",
+        });
+      }
+
+      const invalidTier = tiers.some(
+        (tier) => tier.min == null || tier.max == null || tier.fee == null,
+      );
+
+      if (invalidTier) {
+        return res.status(400).json({
+          success: false,
+          message: "Each tier must contain min, max and fee.",
         });
       }
     }
@@ -117,41 +128,46 @@ exports.updateFeeRule = async (req, res) => {
       });
     }
 
+    // determine the final type first
+    const newType = type ?? rule.type;
+    const newStructure = structure ?? rule.structure;
+    const newStatus = status ?? rule.status;
+
     // 🚫 Prevent activating if another active rule exists
-    if (status === "Active") {
+    if (newStatus === "Active") {
       const existingActive = await FeeRule.findOne({
-        _id: { $ne: req.params.id },
-        type,
+        _id: { $ne: rule._id },
+        type: newType,
         status: "Active",
       });
 
       if (existingActive) {
         return res.status(400).json({
           success: false,
-          message: "Another active rule already exists for this type",
+          message: "Another active rule already exists for this type.",
         });
       }
     }
 
     // Update fields
     rule.ruleName = ruleName ?? rule.ruleName;
-    rule.type = type ?? rule.type;
-    rule.structure = structure ?? rule.structure;
-    rule.status = status ?? rule.status;
+    rule.type = newType;
+    rule.structure = newStructure;
+    rule.status = newStatus;
 
-    if (structure === "Tiered") {
+    if (newStructure === "Tiered") {
       rule.tiers = tiers || [];
       rule.fixedFee = undefined;
       rule.percentage = undefined;
     }
 
-    if (structure === "Fixed") {
+    if (newStructure === "Fixed") {
       rule.fixedFee = fixedFee;
       rule.tiers = [];
       rule.percentage = undefined;
     }
 
-    if (structure === "Percentage") {
+    if (newStructure === "Percentage") {
       rule.percentage = percentage;
       rule.tiers = [];
       rule.fixedFee = undefined;
@@ -174,16 +190,12 @@ exports.updateFeeRule = async (req, res) => {
 };
 
 /**
- * DISABLE FEE RULE
- * PATCH /api/fees/:id/disable
+ * DELETE FEE RULE
+ * DELETE /api/fees/:id
  */
-exports.disableFeeRule = async (req, res) => {
+exports.deleteFeeRule = async (req, res) => {
   try {
-    const fee = await FeeRule.findByIdAndUpdate(
-      req.params.id,
-      { status: "Disabled" },
-      { new: true },
-    );
+    const fee = await FeeRule.findByIdAndDelete(req.params.id);
 
     if (!fee) {
       return res.status(404).json({
@@ -192,16 +204,17 @@ exports.disableFeeRule = async (req, res) => {
       });
     }
 
-    res.json({
+    res.status(200).json({
       success: true,
-      message: "Fee rule disabled",
+      message: "Fee rule deleted successfully",
       data: fee,
     });
   } catch (error) {
-    console.error("Disable Fee Rule Error:", error);
+    console.error("Delete Fee Rule Error:", error);
+
     res.status(500).json({
       success: false,
-      message: error.message,
+      message: error.message || "Failed to delete fee rule",
     });
   }
 };
