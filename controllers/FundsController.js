@@ -90,9 +90,6 @@ exports.getMyFundingRequests = async (req, res) => {
 // ======================================
 // GET ALL FUNDING REQUESTS (ADMIN)
 // ======================================
-// ======================================
-// GET ALL FUNDING REQUESTS (ADMIN)
-// ======================================
 exports.getAllFundingRequests = async (req, res) => {
   try {
     const requests = await FundingRequest.find()
@@ -122,7 +119,10 @@ exports.approveFundingRequest = async (req, res) => {
     const { id } = req.params;
     const { reviewNote } = req.body;
 
-    const request = await FundingRequest.findById(id).populate("user");
+    const request = await FundingRequest.findById(id).populate(
+      "user",
+      "firstName lastName email profileImage username",
+    );
 
     if (!request) {
       return res.status(404).json({
@@ -226,7 +226,10 @@ exports.rejectFundingRequest = async (req, res) => {
     const { id } = req.params;
     const { reviewNote } = req.body;
 
-    const request = await FundingRequest.findById(id).populate("user");
+    const request = await FundingRequest.findById(id).populate(
+      "user",
+      "firstName lastName email profileImage username",
+    );
 
     if (!request) {
       return res.status(404).json({

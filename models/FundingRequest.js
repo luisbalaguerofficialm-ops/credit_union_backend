@@ -38,6 +38,15 @@ const fundingRequestSchema = new mongoose.Schema(
     reviewedAt: {
       type: Date,
     },
+
+    reviewedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+
+    reviewedRole: {
+      type: String,
+    },
   },
   {
     timestamps: true,
