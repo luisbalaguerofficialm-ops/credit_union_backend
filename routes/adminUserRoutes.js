@@ -13,17 +13,16 @@ const {
   creditWallet,
   debitWallet,
   changeRole,
-  getStatistics,
+
 } = require("../controllers/adminUserController");
 
 const { protect, authorize } = require("../middlewares/authMiddleware");
+
 
 // ======================================
 // USER MANAGEMENT
 // ======================================
 
-// Get all users
-// Search, pagination, filtering, sorting
 // GET /api/admin/users
 router.get(
   "/users",
@@ -32,7 +31,6 @@ router.get(
   getAllUsers,
 );
 
-// Get single user profile
 // GET /api/admin/users/:id
 router.get(
   "/users/:id",
@@ -41,7 +39,6 @@ router.get(
   getUserById,
 );
 
-// Update user information
 // PATCH /api/admin/users/:id
 router.patch(
   "/users/:id",
@@ -50,7 +47,6 @@ router.patch(
   updateUser,
 );
 
-// Activate user
 // PATCH /api/admin/users/:id/activate
 router.patch(
   "/users/:id/activate",
@@ -59,7 +55,6 @@ router.patch(
   activateUser,
 );
 
-// Suspend user
 // PATCH /api/admin/users/:id/suspend
 router.patch(
   "/users/:id/suspend",
@@ -69,11 +64,9 @@ router.patch(
 );
 
 // ======================================
-// USER SECURITY FLAGS
+// SECURITY FLAGS
 // ======================================
 
-// Flag user
-// PATCH /api/admin/users/:id/flag
 router.patch(
   "/users/:id/flag",
   protect,
@@ -81,8 +74,6 @@ router.patch(
   flagUser,
 );
 
-// Remove flag
-// PATCH /api/admin/users/:id/unflag
 router.patch(
   "/users/:id/unflag",
   protect,
@@ -94,8 +85,6 @@ router.patch(
 // WALLET MANAGEMENT
 // ======================================
 
-// Credit wallet
-// POST /api/admin/users/:id/credit-wallet
 router.post(
   "/users/:id/credit-wallet",
   protect,
@@ -103,8 +92,6 @@ router.post(
   creditWallet,
 );
 
-// Debit wallet
-// POST /api/admin/users/:id/debit-wallet
 router.post(
   "/users/:id/debit-wallet",
   protect,
@@ -116,22 +103,6 @@ router.post(
 // ROLE MANAGEMENT
 // ======================================
 
-// Change user role
-// PATCH /api/admin/users/:id/role
 router.patch("/users/:id/role", protect, authorize("superadmin"), changeRole);
-
-
-// ======================================
-// ANALYTICS
-// ======================================
-
-// User statistics
-// GET /api/admin/users/statistics
-router.get(
-  "/users/statistics",
-  protect,
-  authorize("superadmin", "admin", "manager"),
-  getStatistics,
-);
 
 module.exports = router;

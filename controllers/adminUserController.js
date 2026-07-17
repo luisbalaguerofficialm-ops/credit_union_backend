@@ -91,13 +91,47 @@ exports.getAllUsers = async (req, res) => {
     });
 
     // New users this month
+    // =========================
+    // ANALYTICS
+    // =========================
+
+    // Current month
     const startOfMonth = new Date();
     startOfMonth.setDate(1);
     startOfMonth.setHours(0, 0, 0, 0);
 
     const newUsersThisMonth = await User.countDocuments({
-      createdAt: { $gte: startOfMonth },
+      createdAt: {
+        $gte: startOfMonth,
+      },
     });
+
+    // Previous month
+    const startOfPreviousMonth = new Date(startOfMonth);
+    startOfPreviousMonth.setMonth(startOfPreviousMonth.getMonth() - 1);
+
+    const endOfPreviousMonth = new Date(startOfMonth);
+
+    // Previous month users
+    const newUsersLastMonth = await User.countDocuments({
+      createdAt: {
+        $gte: startOfPreviousMonth,
+        $lt: endOfPreviousMonth,
+      },
+    });
+
+    // Growth percentage
+    let growthRate = 0;
+
+    if (newUsersLastMonth > 0) {
+      growthRate =
+        ((newUsersThisMonth - newUsersLastMonth) / newUsersLastMonth) * 100;
+    } else if (newUsersThisMonth > 0) {
+      growthRate = 100;
+    }
+
+    // Last audit time
+    const lastAudit = new Date();
 
     res.status(200).json({
       success: true,
@@ -115,17 +149,14 @@ exports.getAllUsers = async (req, res) => {
         suspendedUsers,
         flaggedUsers,
         newUsersThisMonth,
+        growthRate: Number(growthRate.toFixed(1)),
         securityStatus: "Secure",
+        lastAudit,
       },
 
       users,
     });
   } catch (err) {
-    console.error(err);
-    console.log("ERROR STATUS:", error.response?.status);
-    console.log("ERROR DATA:", error.response?.data);
-    console.log("ERROR:", error);
-
     res.status(500).json({
       success: false,
       message: "Failed to fetch users.",
@@ -655,108 +686,6 @@ exports.changeRole = async (req, res) => {
       success: false,
 
       message: "Failed to change role",
-    });
-  }
-};
-
-// ======================================
-// GET USER STATISTICS
-// GET /api/admin/users/statistics
-// ======================================
-exports.getStatistics = async (req, res) => {
-  try {
-    const [
-      totalUsers,
-      activeUsers,
-      suspendedUsers,
-      flaggedUsers,
-      admins,
-      managers,
-      customers,
-      totalWalletBalance,
-      totalTransactions,
-    ] = await Promise.all([
-      // Total users
-      User.countDocuments(),
-
-      // Active users
-      User.countDocuments({
-        status: "active",
-      }),
-
-      // Suspended users
-      User.countDocuments({
-        status: "suspended",
-      }),
-
-      // Flagged users
-      User.countDocuments({
-        flagged: true,
-      }),
-
-      // Admin roles
-      User.countDocuments({
-        role: "admin",
-      }),
-
-      // Managers
-      User.countDocuments({
-        role: "manager",
-      }),
-
-      // Normal users
-      User.countDocuments({
-        role: "user",
-      }),
-
-      // Wallet total balance
-      Wallet.aggregate([
-        {
-          $group: {
-            _id: null,
-            total: {
-              $sum: "$balance",
-            },
-          },
-        },
-      ]),
-
-      // Transactions count
-      Transaction.countDocuments(),
-    ]);
-
-    res.status(200).json({
-      success: true,
-
-      statistics: {
-        users: {
-          total: totalUsers,
-          active: activeUsers,
-          suspended: suspendedUsers,
-          flagged: flaggedUsers,
-        },
-
-        roles: {
-          users: customers,
-          admins,
-          managers,
-        },
-
-        wallet: {
-          totalBalance: totalWalletBalance[0]?.total || 0,
-        },
-
-        transactions: {
-          total: totalTransactions,
-        },
-      },
-    });
-  } catch (error) {
-    console.error("Get Statistics Error:", error);
-
-    res.status(500).json({
-      success: false,
-      message: "Failed to get statistics",
     });
   }
 };
