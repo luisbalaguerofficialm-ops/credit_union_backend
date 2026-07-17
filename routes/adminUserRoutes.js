@@ -10,14 +10,13 @@ const {
   suspendUser,
   flagUser,
   unflagUser,
+  updateUserStatus,
   creditWallet,
   debitWallet,
   changeRole,
-
 } = require("../controllers/adminUserController");
 
 const { protect, authorize } = require("../middlewares/authMiddleware");
-
 
 // ======================================
 // USER MANAGEMENT
@@ -79,6 +78,14 @@ router.patch(
   protect,
   authorize("superadmin", "admin", "manager"),
   unflagUser,
+);
+
+// PATCH /api/admin/users/:id/status
+router.patch(
+  "/users/:id/status",
+  protect,
+  authorize("superadmin", "admin", "manager"),
+  updateUserStatus,
 );
 
 // ======================================

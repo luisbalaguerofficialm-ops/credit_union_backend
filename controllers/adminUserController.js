@@ -488,6 +488,66 @@ exports.unflagUser = async (req, res) => {
 };
 
 // ======================================
+// UPDATE USER STATUS
+// PATCH /api/admin/users/:id/status
+// ======================================
+
+exports.updateUserStatus = async (req, res) => {
+  try {
+    const { status } = req.body;
+
+    const allowedStatus = ["Pending", "Active", "Suspended", "Flagged"];
+
+    if (!allowedStatus.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid status.",
+      });
+    }
+
+    const user = await User.findById(req.params.id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found.",
+      });
+    }
+
+    user.status = status;
+    await user.save();
+
+    // Optional notification
+    await createNotification({
+      userId: user._id,
+      title: "Account Status Updated",
+      message: `Your account status has been updated to ${status}.`,
+      category: "account",
+      email: user.email,
+    });
+
+    const io = req.app.get("io");
+
+    if (io) {
+      await emitDashboardUpdate(io, user._id);
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "User status updated successfully.",
+      status: user.status,
+    });
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to update status.",
+    });
+  }
+};
+
+// ======================================
 // CREDIT USER WALLET
 // POST /api/admin/users/:id/credit
 // ======================================
