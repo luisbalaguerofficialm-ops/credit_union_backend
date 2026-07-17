@@ -9,118 +9,151 @@ exports.getAllUsers = async (req, res) => {
   try {
     const {
       page = 1,
-      limit = 4,
+      limit = 10,
       search = "",
-      status,
-      accountType,
+      status = "All",
+      accountType = "All",
       sort = "newest",
     } = req.query;
+
+    // =======================
+    // FILTER BUILDER
+    // =======================
 
     const filter = {};
 
     if (search) {
-      const searchRegex = new RegExp(search, "i");
+      const regex = new RegExp(search, "i");
 
       filter.$or = [
-        { firstName: searchRegex },
-        { lastName: searchRegex },
-        { username: searchRegex },
-        { email: searchRegex },
-        { accountNumber: search },
+        {
+          firstName: regex,
+        },
+
+        {
+          lastName: regex,
+        },
+
+        {
+          username: regex,
+        },
+
+        {
+          email: regex,
+        },
       ];
+
+      // account number search
+      if (!isNaN(search)) {
+        filter.$or.push({
+          accountNumber: Number(search),
+        });
+      }
     }
 
+    // STATUS FILTER
+
     if (status && status !== "All") {
-      filter.status = status;
+      filter.status =
+        status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
     }
+
+    // ACCOUNT TYPE FILTER
 
     if (accountType && accountType !== "All") {
       filter.accountType = accountType;
     }
 
-    let sortOption = { createdAt: -1 };
+    // =======================
+    // SORT
+    // =======================
 
-    switch (sort) {
-      case "oldest":
-        sortOption = { createdAt: 1 };
-        break;
+    let sortOption = {
+      createdAt: -1,
+    };
 
-      case "name":
-        sortOption = { firstName: 1 };
-        break;
+    if (sort === "oldest")
+      sortOption = {
+        createdAt: 1,
+      };
 
-      case "lastLogin":
-        sortOption = { lastLogin: -1 };
-        break;
+    if (sort === "name")
+      sortOption = {
+        firstName: 1,
+      };
 
-      default:
-        sortOption = { createdAt: -1 };
-    }
+    if (sort === "lastLogin")
+      sortOption = {
+        lastLogin: -1,
+      };
 
-    const currentPage = Math.max(parseInt(page), 1);
-    const perPage = Math.max(parseInt(limit), 1);
+    const currentPage = Math.max(Number(page), 1);
+
+    const perPage = Math.max(Number(limit), 1);
 
     const skip = (currentPage - 1) * perPage;
 
-    const total = await User.countDocuments(filter);
+    const [
+      total,
+      users,
+      activeUsers,
+      pendingUsers,
+      suspendedUsers,
+      flaggedUsers,
+    ] = await Promise.all([
+      User.countDocuments(filter),
 
-    const users = await User.find(filter)
-      .select("-password -pinHash -refreshToken")
-      .sort(sortOption)
-      .skip(skip)
-      .limit(perPage);
+      User.find(filter)
+        .select("-password -pinHash -refreshToken")
+        .sort(sortOption)
+        .skip(skip)
+        .limit(perPage),
 
-    // =========================
-    // ANALYTICS
-    // =========================
+      User.countDocuments({
+        status: "Active",
+      }),
 
-    const activeUsers = await User.countDocuments({
-      status: "Active",
-    });
+      User.countDocuments({
+        status: "Pending",
+      }),
 
-    const pendingUsers = await User.countDocuments({
-      status: "Pending",
-    });
+      User.countDocuments({
+        status: "Suspended",
+      }),
 
-    const suspendedUsers = await User.countDocuments({
-      status: "Suspended",
-    });
+      User.countDocuments({
+        status: "Flagged",
+      }),
+    ]);
 
-    const flaggedUsers = await User.countDocuments({
-      status: "Flagged",
-    });
+    // =======================
+    // GROWTH RATE
+    // =======================
 
-    // New users this month
-    // =========================
-    // ANALYTICS
-    // =========================
+    const startMonth = new Date();
 
-    // Current month
-    const startOfMonth = new Date();
-    startOfMonth.setDate(1);
-    startOfMonth.setHours(0, 0, 0, 0);
+    startMonth.setDate(1);
+    startMonth.setHours(0, 0, 0, 0);
 
-    const newUsersThisMonth = await User.countDocuments({
-      createdAt: {
-        $gte: startOfMonth,
-      },
-    });
+    const previousMonth = new Date(startMonth);
 
-    // Previous month
-    const startOfPreviousMonth = new Date(startOfMonth);
-    startOfPreviousMonth.setMonth(startOfPreviousMonth.getMonth() - 1);
+    previousMonth.setMonth(previousMonth.getMonth() - 1);
 
-    const endOfPreviousMonth = new Date(startOfMonth);
+    const [newUsersThisMonth, newUsersLastMonth] = await Promise.all([
+      User.countDocuments({
+        createdAt: {
+          $gte: startMonth,
+        },
+      }),
 
-    // Previous month users
-    const newUsersLastMonth = await User.countDocuments({
-      createdAt: {
-        $gte: startOfPreviousMonth,
-        $lt: endOfPreviousMonth,
-      },
-    });
+      User.countDocuments({
+        createdAt: {
+          $gte: previousMonth,
+          $lt: startMonth,
+        },
+      }),
+    ]);
 
-    // Growth percentage
     let growthRate = 0;
 
     if (newUsersLastMonth > 0) {
@@ -130,17 +163,11 @@ exports.getAllUsers = async (req, res) => {
       growthRate = 100;
     }
 
-    // Last audit time
-    const lastAudit = new Date();
-
-    res.status(200).json({
+    res.json({
       success: true,
-
       total,
       page: currentPage,
       pages: Math.ceil(total / perPage),
-      hasNextPage: currentPage < Math.ceil(total / perPage),
-      hasPrevPage: currentPage > 1,
 
       analytics: {
         totalUsers: total,
@@ -151,19 +178,23 @@ exports.getAllUsers = async (req, res) => {
         newUsersThisMonth,
         growthRate: Number(growthRate.toFixed(1)),
         securityStatus: "Secure",
-        lastAudit,
+        lastAudit: new Date(),
       },
 
       users,
     });
-  } catch (err) {
+  } catch (error) {
+    console.log(error);
+
     res.status(500).json({
       success: false,
-      message: "Failed to fetch users.",
+
+      message: "Failed to fetch users",
     });
   }
 };
 
+//
 //
 // GET USER PROFILE
 // GET /api/admin/users/:id
@@ -171,11 +202,11 @@ exports.getAllUsers = async (req, res) => {
 exports.getUserById = async (req, res) => {
   try {
     const page = Number(req.query.page) || 1;
-    const limit = Number(req.query.limit) || 3;
+    const limit = Number(req.query.limit) || 5;
 
-    const user = await User.findById(req.params.id).select(
-      "-password -pinHash -refreshToken",
-    );
+    const user = await User.findById(req.params.id)
+      .select("-password -pinHash -refreshToken")
+      .lean();
 
     if (!user) {
       return res.status(404).json({
@@ -184,9 +215,17 @@ exports.getUserById = async (req, res) => {
       });
     }
 
+    // ============================
+    // WALLET
+    // ============================
+
     const wallet = await Wallet.findOne({
       user: user._id,
-    });
+    }).lean();
+
+    // ============================
+    // TRANSACTIONS
+    // ============================
 
     const totalTransactions = await Transaction.countDocuments({
       user: user._id,
@@ -195,29 +234,42 @@ exports.getUserById = async (req, res) => {
     const transactions = await Transaction.find({
       user: user._id,
     })
-      .sort({ createdAt: -1 })
+      .sort({
+        createdAt: -1,
+      })
       .skip((page - 1) * limit)
       .limit(limit)
       .lean();
 
     res.status(200).json({
       success: true,
+
       user,
-      wallet,
+
+      wallet: {
+        balance: wallet?.balance || 0,
+        currency: wallet?.currency || "USD",
+        walletId: wallet?._id || null,
+      },
 
       transactions,
+
+      transactionSummary: {
+        total: totalTransactions,
+      },
 
       pagination: {
         total: totalTransactions,
         page,
-        pages: Math.ceil(totalTransactions / limit),
         limit,
+        pages: Math.ceil(totalTransactions / limit),
         hasNextPage: page < Math.ceil(totalTransactions / limit),
+
         hasPrevPage: page > 1,
       },
     });
   } catch (err) {
-    console.error(err);
+    console.error("Get User Profile Error:", err);
 
     res.status(500).json({
       success: false,
@@ -225,7 +277,6 @@ exports.getUserById = async (req, res) => {
     });
   }
 };
-
 //
 // UPDATE USER
 // PATCH /api/admin/users/:id

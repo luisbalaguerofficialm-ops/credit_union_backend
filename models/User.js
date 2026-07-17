@@ -16,12 +16,14 @@ const UserSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
+      index: true,
     },
 
     lastName: {
       type: String,
       required: true,
       trim: true,
+      index: true,
     },
 
     username: {
@@ -30,6 +32,7 @@ const UserSchema = new mongoose.Schema(
       required: true,
       lowercase: true,
       trim: true,
+      index: true,
     },
 
     email: {
@@ -38,6 +41,7 @@ const UserSchema = new mongoose.Schema(
       required: true,
       lowercase: true,
       trim: true,
+      index: true,
     },
 
     socialSecurityNumber: {
@@ -72,6 +76,7 @@ const UserSchema = new mongoose.Schema(
       type: String,
       enum: ["Savings", "Current", "Fixed Deposit"],
       required: true,
+      index: true,
     },
 
     refreshToken: {
@@ -157,13 +162,17 @@ const UserSchema = new mongoose.Schema(
       type: String,
       enum: ["Pending", "Active", "Suspended", "Flagged"],
       default: "Pending",
+      index: true,
     },
 
     flagReason: String,
 
     suspensionReason: String,
 
-    lastLogin: Date,
+    lastLogin: {
+      type: Date,
+      index: true,
+    },
 
     isEmailVerified: {
       type: Boolean,
@@ -210,6 +219,11 @@ const UserSchema = new mongoose.Schema(
     transactionPinResetVerified: {
       type: Boolean,
       default: false,
+    },
+
+    createdAt: {
+      type: Date,
+      index: true,
     },
 
     // =============================
