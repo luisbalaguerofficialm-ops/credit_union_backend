@@ -203,6 +203,9 @@ exports.approveFundingRequest = async (req, res) => {
     });
   } catch (error) {
     console.error(error);
+    console.log("ERROR STATUS:", error.response?.status);
+    console.log("ERROR DATA:", error.response?.data);
+    console.log("ERROR:", error);
 
     res.status(500).json({
       success: false,

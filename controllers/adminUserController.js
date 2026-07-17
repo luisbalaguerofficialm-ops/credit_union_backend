@@ -122,6 +122,9 @@ exports.getAllUsers = async (req, res) => {
     });
   } catch (err) {
     console.error(err);
+    console.log("ERROR STATUS:", error.response?.status);
+    console.log("ERROR DATA:", error.response?.data);
+    console.log("ERROR:", error);
 
     res.status(500).json({
       success: false,
