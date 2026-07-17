@@ -5,10 +5,7 @@ const crypto = require("crypto");
 const { createNotification } = require("./notificationController");
 const emitDashboardUpdate = require("../utils/emitDashboardUpdate");
 
-//
-// GET ALL USERS
-// GET /api/admin/users
-//
+
 exports.getAllUsers = async (req, res) => {
   try {
     const {
@@ -22,7 +19,6 @@ exports.getAllUsers = async (req, res) => {
 
     const filter = {};
 
-    // Search
     if (search) {
       const searchRegex = new RegExp(search, "i");
 
@@ -35,17 +31,14 @@ exports.getAllUsers = async (req, res) => {
       ];
     }
 
-    // Status
     if (status && status !== "All") {
       filter.status = status;
     }
 
-    // Account Type
     if (accountType && accountType !== "All") {
       filter.accountType = accountType;
     }
 
-    // Sorting
     let sortOption = { createdAt: -1 };
 
     switch (sort) {
@@ -61,7 +54,6 @@ exports.getAllUsers = async (req, res) => {
         sortOption = { lastLogin: -1 };
         break;
 
-      case "newest":
       default:
         sortOption = { createdAt: -1 };
     }
@@ -79,13 +71,54 @@ exports.getAllUsers = async (req, res) => {
       .skip(skip)
       .limit(perPage);
 
+    // =========================
+    // ANALYTICS
+    // =========================
+
+    const activeUsers = await User.countDocuments({
+      status: "Active",
+    });
+
+    const pendingUsers = await User.countDocuments({
+      status: "Pending",
+    });
+
+    const suspendedUsers = await User.countDocuments({
+      status: "Suspended",
+    });
+
+    const flaggedUsers = await User.countDocuments({
+      status: "Flagged",
+    });
+
+    // New users this month
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+
+    const newUsersThisMonth = await User.countDocuments({
+      createdAt: { $gte: startOfMonth },
+    });
+
     res.status(200).json({
       success: true,
+
       total,
       page: currentPage,
       pages: Math.ceil(total / perPage),
       hasNextPage: currentPage < Math.ceil(total / perPage),
       hasPrevPage: currentPage > 1,
+
+      analytics: {
+        totalUsers: total,
+        activeUsers,
+        pendingUsers,
+        suspendedUsers,
+        flaggedUsers,
+        newUsersThisMonth,
+        securityStatus: "Secure",
+      },
+
       users,
     });
   } catch (err) {
@@ -597,7 +630,6 @@ exports.changeRole = async (req, res) => {
     });
   }
 };
-
 
 // ======================================
 // GET USER STATISTICS

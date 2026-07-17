@@ -46,6 +46,7 @@ const fundingRequestSchema = new mongoose.Schema(
 
     reviewedRole: {
       type: String,
+      enum: ["admin", "superadmin"],
     },
   },
   {

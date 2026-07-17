@@ -1,6 +1,5 @@
 const FundingRequest = require("../models/FundingRequest");
 const Wallet = require("../models/Wallet");
-const Transaction = require("../models/Transaction");
 const emitDashboardUpdate = require("../utils/emitDashboardUpdate");
 const { createNotification } = require("./notificationController");
 
@@ -119,6 +118,13 @@ exports.approveFundingRequest = async (req, res) => {
     const { id } = req.params;
     const { reviewNote } = req.body;
 
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized",
+      });
+    }
+
     const request = await FundingRequest.findById(id).populate(
       "user",
       "firstName lastName email profileImage username",
@@ -153,19 +159,6 @@ exports.approveFundingRequest = async (req, res) => {
     }
 
     await wallet.addFunds(request.amount, req.user.role);
-
-    // =====================================
-    // CREATE TRANSACTION
-    // =====================================
-
-    await Transaction.create({
-      user: request.user._id,
-      amount: request.amount,
-      type: "Deposit",
-      status: "Successful",
-      category: "Funding",
-      narration: "Bank Funding Request Approved",
-    });
 
     // =====================================
     // UPDATE REQUEST
