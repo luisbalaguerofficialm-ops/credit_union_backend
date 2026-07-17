@@ -5,7 +5,6 @@ const crypto = require("crypto");
 const { createNotification } = require("./notificationController");
 const emitDashboardUpdate = require("../utils/emitDashboardUpdate");
 
-
 exports.getAllUsers = async (req, res) => {
   try {
     const {
@@ -137,6 +136,9 @@ exports.getAllUsers = async (req, res) => {
 //
 exports.getUserById = async (req, res) => {
   try {
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 3;
+
     const user = await User.findById(req.params.id).select(
       "-password -pinHash -refreshToken",
     );
@@ -152,10 +154,33 @@ exports.getUserById = async (req, res) => {
       user: user._id,
     });
 
+    const totalTransactions = await Transaction.countDocuments({
+      user: user._id,
+    });
+
+    const transactions = await Transaction.find({
+      user: user._id,
+    })
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean();
+
     res.status(200).json({
       success: true,
       user,
       wallet,
+
+      transactions,
+
+      pagination: {
+        total: totalTransactions,
+        page,
+        pages: Math.ceil(totalTransactions / limit),
+        limit,
+        hasNextPage: page < Math.ceil(totalTransactions / limit),
+        hasPrevPage: page > 1,
+      },
     });
   } catch (err) {
     console.error(err);
