@@ -116,7 +116,6 @@ exports.getAllFundingRequests = async (req, res) => {
 exports.approveFundingRequest = async (req, res) => {
   try {
     const { id } = req.params;
-    const { reviewNote } = req.body;
 
     if (!req.user) {
       return res.status(401).json({
@@ -165,7 +164,6 @@ exports.approveFundingRequest = async (req, res) => {
     // =====================================
 
     request.status = "approved";
-    request.reviewNote = reviewNote || "";
     request.reviewedAt = new Date();
     request.reviewedBy = req.user._id;
     request.reviewedRole = req.user.role;
@@ -203,9 +201,6 @@ exports.approveFundingRequest = async (req, res) => {
     });
   } catch (error) {
     console.error(error);
-    console.log("ERROR STATUS:", error.response?.status);
-    console.log("ERROR DATA:", error.response?.data);
-    console.log("ERROR:", error);
 
     res.status(500).json({
       success: false,
@@ -220,7 +215,6 @@ exports.approveFundingRequest = async (req, res) => {
 exports.rejectFundingRequest = async (req, res) => {
   try {
     const { id } = req.params;
-    const { reviewNote } = req.body;
 
     const request = await FundingRequest.findById(id).populate(
       "user",
@@ -242,7 +236,6 @@ exports.rejectFundingRequest = async (req, res) => {
     }
 
     request.status = "rejected";
-    request.reviewNote = reviewNote || "";
     request.reviewedAt = new Date();
     request.reviewedBy = req.user._id;
     request.reviewedRole = req.user.role;

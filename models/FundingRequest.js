@@ -30,11 +30,7 @@ const fundingRequestSchema = new mongoose.Schema(
       default: "pending",
     },
 
-    reviewNote: {
-      type: String,
-      default: "",
-    },
-
+  
     reviewedAt: {
       type: Date,
     },
