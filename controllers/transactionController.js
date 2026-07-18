@@ -849,7 +849,7 @@ exports.adminTransactionById = async (req, res) => {
         type: transaction.type,
         transferType: transaction.transferType,
         description: transaction.description,
-        transferFee: transferFeeAmount,
+        transferFee: transaction.metadata?.transferFee || 0,
         metadata: transaction.metadata,
         createdAt: transaction.createdAt,
         updatedAt: transaction.updatedAt,
