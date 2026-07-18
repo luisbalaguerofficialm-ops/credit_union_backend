@@ -899,6 +899,102 @@ exports.adminTransactionById = async (req, res) => {
   }
 };
 
+// ======================================
+// ADMIN UPDATE TRANSACTION STATUS
+// PATCH /api/transactions/admin/transactions/:id/status
+// ======================================
+
+exports.adminUpdateTransactionStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    const workflow = {
+      Pending: ["Processing", "Failed"],
+
+      Processing: ["Funds Authorized", "Failed"],
+
+      "Funds Authorized": ["Successful", "Failed"],
+
+      Successful: [],
+
+      Failed: [],
+
+      "Initiated from Web Portal": ["Pending"],
+    };
+
+    const transaction = await Transaction.findById(id).populate(
+      "user",
+      "firstName lastName email",
+    );
+
+    if (!transaction || transaction.deleted) {
+      return res.status(404).json({
+        success: false,
+        message: "Transaction not found",
+      });
+    }
+
+    const currentStatus = transaction.status;
+
+    // Prevent updating to same status
+    if (currentStatus === status) {
+      return res.status(400).json({
+        success: false,
+        message: `Transaction is already "${status}".`,
+      });
+    }
+
+    // Validate requested status exists
+    if (!workflow.hasOwnProperty(currentStatus)) {
+      return res.status(400).json({
+        success: false,
+        message: "Current transaction status is invalid.",
+      });
+    }
+
+    // Validate workflow transition
+    if (!workflow[currentStatus].includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot change status from "${currentStatus}" to "${status}".`,
+        currentStatus,
+        allowedTransitions: workflow[currentStatus],
+      });
+    }
+
+    // Update transaction
+    transaction.status = status;
+
+    // Optional audit information
+    transaction.statusUpdatedBy = req.user._id;
+    transaction.statusUpdatedAt = new Date();
+
+    await transaction.save();
+
+    // Emit realtime dashboard update
+    const io = req.app.get("io");
+
+    if (io && transaction.user?._id) {
+      await emitDashboardUpdate(io, transaction.user._id);
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `Transaction moved from "${currentStatus}" to "${status}".`,
+      transaction,
+      nextStatuses: workflow[status],
+    });
+  } catch (err) {
+    console.error("Admin Update Transaction Status:", err);
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to update transaction status",
+    });
+  }
+};
+
 // DELETE /api/admin/transactions/:id
 
 exports.adminDeleteTransaction = async (req, res) => {

@@ -110,6 +110,20 @@ const TransactionSchema = new mongoose.Schema(
       default: "Pending",
     },
 
+    statusHistory: [
+      {
+        status: String,
+        updatedBy: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+        },
+        updatedAt: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
+
     description: String,
 
     metadata: Object,

@@ -20,6 +20,7 @@ const {
   getFiltered,
   adminGetTransactions,
   adminDeleteTransaction,
+  adminUpdateTransactionStatus,
   adminTransactionById,
 } = require("../controllers/transactionController");
 
@@ -44,19 +45,25 @@ router.get(
   authorize("superadmin", "admin", "manager"),
   adminGetTransactions,
 );
+router.get(
+  "/admin/transactions/:id",
+  protect,
+  authorize("superadmin", "admin", "manager"),
+  adminTransactionById,
+);
+
+router.patch(
+  "/admin/transactions/:id/status",
+  protect,
+  authorize("superadmin", "admin", "manager"),
+  adminUpdateTransactionStatus,
+);
 
 router.delete(
   "admin/transactions/:id",
   protect,
   authorize("superadmin", "admin", "manager"),
   adminDeleteTransaction,
-);
-
-router.get(
-  "/admin/transactions/:id",
-  protect,
-  authorize("superadmin", "admin", "manager"),
-  adminTransactionById, 
 );
 
 module.exports = router;
