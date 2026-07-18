@@ -650,9 +650,9 @@ exports.adminGetTransactions = async (req, res) => {
     const page = Number(req.query.page) || 1;
     const limit = Number(req.query.limit) || 10;
 
-    const query = {
-      deleted: false,
-    };
+    // const query = {
+    //   deleted: false,
+    // };
 
     if (req.query.status) {
       query.status = req.query.status;
@@ -801,29 +801,81 @@ exports.adminGetTransactions = async (req, res) => {
   }
 };
 
-// aadmin get by id
+// ======================================
+// ADMIN GET TRANSACTION BY ID
+// GET /api/transactions/admin/:id
+// ======================================
 exports.adminTransactionById = async (req, res) => {
   try {
-    const transaction = await Transaction.findById(req.params.id)
+    const transaction = await Transaction.findById(req.params.id).populate(
+      "user",
+      "firstName lastName email username accountNumber country state city profileImage",
+    );
 
-      .populate("user", "-password -pinHash -refreshToken");
-
-    if (!transaction)
+    if (!transaction || transaction.deleted) {
       return res.status(404).json({
         success: false,
-
         message: "Transaction not found",
       });
+    }
 
-    res.json({
+    res.status(200).json({
       success: true,
 
-      transaction,
+      transaction: {
+        _id: transaction._id,
+
+        transactionId: transaction.transactionId,
+        amount: transaction.amount,
+        status: transaction.status,
+        type: transaction.type,
+        transferType: transaction.transferType,
+        description: transaction.description,
+        transferFee: transferFeeAmount,
+        metadata: transaction.metadata,
+        createdAt: transaction.createdAt,
+        updatedAt: transaction.updatedAt,
+        sender: {
+          id: transaction.user?._id,
+
+          fullName: `${transaction.user?.firstName || ""} ${
+            transaction.user?.lastName || ""
+          }`.trim(),
+
+          firstName: transaction.user?.firstName,
+          lastName: transaction.user?.lastName,
+          username: transaction.user?.username,
+          email: transaction.user?.email,
+          accountNumber: transaction.user?.accountNumber,
+          country: transaction.user?.country,
+          state: transaction.user?.state,
+          city: transaction.user?.city,
+          profileImage: transaction.user?.profileImage,
+        },
+        recipient: {
+          name: transaction.recipientName,
+          email: transaction.recipientEmail,
+          country: transaction.recipientCountry,
+          bankName: transaction.bankName,
+          accountNumber: transaction.accountNumber,
+          iban: transaction.iban,
+          swiftCode: transaction.swiftCode,
+        },
+
+        audit: {
+          deleted: transaction.deleted,
+
+          deletedAt: transaction.deletedAt,
+
+          deletedBy: transaction.deletedBy,
+        },
+      },
     });
   } catch (err) {
+    console.error("Admin Transaction By Id:", err);
+
     res.status(500).json({
       success: false,
-
       message: "Unable to fetch transaction",
     });
   }
@@ -868,42 +920,6 @@ exports.adminDeleteTransaction = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Server error",
-    });
-  }
-};
-
-// ==========================================
-// GET TRANSACTION BY ID (ADMIN)
-// GET /api/admin/transactions/:id
-// ==========================================
-exports.adminTransactionById = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const transaction = await Transaction.findById(id)
-      .populate(
-        "user",
-        "firstName lastName email profileImage accountNumber phone status",
-      )
-      .lean();
-
-    if (!transaction || transaction.deleted) {
-      return res.status(404).json({
-        success: false,
-        message: "Transaction not found",
-      });
-    }
-
-    return res.status(200).json({
-      success: true,
-      transaction,
-    });
-  } catch (error) {
-    console.error("Get Transaction Error:", error);
-
-    return res.status(500).json({
-      success: false,
-      message: "Failed to fetch transaction",
     });
   }
 };

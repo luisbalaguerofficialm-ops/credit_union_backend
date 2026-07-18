@@ -46,7 +46,7 @@ router.get(
 );
 
 router.delete(
-  "admin//transactions/:id",
+  "admin/transactions/:id",
   protect,
   authorize("superadmin", "admin", "manager"),
   adminDeleteTransaction,
@@ -56,7 +56,7 @@ router.get(
   "/admin/transactions/:id",
   protect,
   authorize("superadmin", "admin", "manager"),
-  adminTransactionById,
+  adminTransactionById, 
 );
 
 module.exports = router;

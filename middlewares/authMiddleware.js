@@ -36,6 +36,7 @@ async function protect(req, res, next) {
       // ============================
       // VERIFY ACCESS TOKEN
       // ============================
+
       const payload = jwt.verify(token, process.env.JWT_SECRET);
 
       const user = await User.findById(payload.id).select(

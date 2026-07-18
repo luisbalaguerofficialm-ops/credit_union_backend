@@ -293,6 +293,7 @@ Please change your PIN after login.
 // LOGIN USER
 // ===============================
 exports.loginUser = async (req, res) => {
+ 
   try {
     const { identifier, password, rememberMe } = req.body;
 
@@ -338,6 +339,7 @@ exports.loginUser = async (req, res) => {
     // =====================
     // ACCESS TOKEN
     // =====================
+
     const accessToken = jwt.sign(
       {
         id: user._id,
