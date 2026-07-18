@@ -643,16 +643,20 @@ exports.deleteTransactionById = async (req, res) => {
 
 // ======================================
 // ADMIN GET ALL TRANSACTIONS
-// GET /api/admin/transactions
+// GET /api/transactions/admin/transactions
 // ======================================
 exports.adminGetTransactions = async (req, res) => {
   try {
-    const page = Number(req.query.page) || 1;
-    const limit = Number(req.query.limit) || 10;
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 10;
 
-    // const query = {
-    //   deleted: false,
-    // };
+    // -----------------------------------
+    // Build Query
+    // -----------------------------------
+    const query = {};
+
+    // Ignore deleted records if field exists
+    query.deleted = { $ne: true };
 
     if (req.query.status) {
       query.status = req.query.status;
@@ -662,7 +666,7 @@ exports.adminGetTransactions = async (req, res) => {
       query.type = req.query.type;
     }
 
-    if (req.query.search) {
+    if (req.query.search && req.query.search.trim() !== "") {
       query.$or = [
         {
           recipientName: {
@@ -688,10 +692,20 @@ exports.adminGetTransactions = async (req, res) => {
             $options: "i",
           },
         },
+        {
+          bankName: {
+            $regex: req.query.search,
+            $options: "i",
+          },
+        },
       ];
     }
 
-    const [transactions, total, volume, statusCounts, activeUsers] =
+    // -----------------------------------
+    // Fetch Data
+    // -----------------------------------
+
+    const [transactions, total, statusCounts, volume, activeUsers] =
       await Promise.all([
         Transaction.find(query)
           .populate(
@@ -700,31 +714,15 @@ exports.adminGetTransactions = async (req, res) => {
           )
           .sort({ createdAt: -1 })
           .skip((page - 1) * limit)
-          .limit(limit),
+          .limit(limit)
+          .lean(),
 
         Transaction.countDocuments(query),
 
         Transaction.aggregate([
           {
             $match: {
-              status: "Successful",
-              deleted: false,
-            },
-          },
-          {
-            $group: {
-              _id: null,
-              total: {
-                $sum: "$amount",
-              },
-            },
-          },
-        ]),
-
-        Transaction.aggregate([
-          {
-            $match: {
-              deleted: false,
+              deleted: { $ne: true },
             },
           },
           {
@@ -737,10 +735,31 @@ exports.adminGetTransactions = async (req, res) => {
           },
         ]),
 
+        Transaction.aggregate([
+          {
+            $match: {
+              status: "Successful",
+              deleted: { $ne: true },
+            },
+          },
+          {
+            $group: {
+              _id: null,
+              total: {
+                $sum: "$amount",
+              },
+            },
+          },
+        ]),
+
         User.countDocuments({
           status: "Active",
         }),
       ]);
+
+    // -----------------------------------
+    // Status Counters
+    // -----------------------------------
 
     const counts = {
       Pending: 0,
@@ -769,7 +788,7 @@ exports.adminGetTransactions = async (req, res) => {
       success: true,
 
       stats: {
-        totalVolume: volume[0]?.total || 0,
+        totalVolume: volume.length ? volume[0].total : 0,
         pendingTasks: counts.Pending,
         processing: counts.Processing,
         authorized: counts["Funds Authorized"],
@@ -792,16 +811,15 @@ exports.adminGetTransactions = async (req, res) => {
       },
     });
   } catch (err) {
-    console.error("Admin Transactions:", err);
+    console.error("Admin Transactions Error:", err);
 
     return res.status(500).json({
       success: false,
       message: "Unable to load transactions",
+      error: err.message,
     });
   }
 };
-
-// ======================================
 // ADMIN GET TRANSACTION BY ID
 // GET /api/transactions/admin/:id
 // ======================================
