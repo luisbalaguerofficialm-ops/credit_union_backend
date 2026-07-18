@@ -175,7 +175,7 @@ exports.createTransaction = async (req, res) => {
       status: "Pending",
       description: narration,
       transactionId: `TXN-${Date.now()}-${Math.floor(Math.random() * 100000)}`,
-metadata: {
+      metadata: {
         transferFee: transferFeeAmount,
       },
     });
@@ -641,120 +641,269 @@ exports.deleteTransactionById = async (req, res) => {
   }
 };
 
-// ===============================
-// EXPORT TRANSACTIONS AS CSV
-// ===============================
-exports.exportTransactionsCSV = async (req, res) => {
+// ======================================
+// ADMIN GET ALL TRANSACTIONS
+// GET /api/admin/transactions
+// ======================================
+exports.adminGetTransactions = async (req, res) => {
   try {
-    const userId = req.user._id;
-    const { type, status, from, to, q } = req.query;
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 10;
 
-    const filter = { user: userId };
+    const query = {
+      deleted: false,
+    };
 
-    if (type) filter.type = type;
-    if (status) filter.status = status;
-
-    if (from || to) {
-      filter.date = {};
-      if (from) filter.date.$gte = new Date(from);
-      if (to)
-        filter.date.$lte = new Date(new Date(to).setHours(23, 59, 59, 999));
+    if (req.query.status) {
+      query.status = req.query.status;
     }
 
-    if (q) {
-      filter.$or = [
-        { recipientName: { $regex: q, $options: "i" } },
-        { description: { $regex: q, $options: "i" } },
-        { transactionId: { $regex: q, $options: "i" } },
+    if (req.query.type) {
+      query.type = req.query.type;
+    }
+
+    if (req.query.search) {
+      query.$or = [
+        {
+          recipientName: {
+            $regex: req.query.search,
+            $options: "i",
+          },
+        },
+        {
+          recipientEmail: {
+            $regex: req.query.search,
+            $options: "i",
+          },
+        },
+        {
+          transactionId: {
+            $regex: req.query.search,
+            $options: "i",
+          },
+        },
+        {
+          accountNumber: {
+            $regex: req.query.search,
+            $options: "i",
+          },
+        },
       ];
     }
 
-    const transactions = await Transaction.find(filter).sort({ date: -1 });
+    const [transactions, total, volume, statusCounts, activeUsers] =
+      await Promise.all([
+        Transaction.find(query)
+          .populate(
+            "user",
+            "firstName lastName email profileImage accountNumber",
+          )
+          .sort({ createdAt: -1 })
+          .skip((page - 1) * limit)
+          .limit(limit),
 
-    const fields = [
-      "transactionId",
-      "type",
-      "recipientName",
-      "bankName",
-      "accountNumber",
-      "amount",
-      "status",
-      "description",
-      "date",
-    ];
+        Transaction.countDocuments(query),
 
-    const parser = new Parser({ fields });
-    const csv = parser.parse(transactions);
+        Transaction.aggregate([
+          {
+            $match: {
+              status: "Successful",
+              deleted: false,
+            },
+          },
+          {
+            $group: {
+              _id: null,
+              total: {
+                $sum: "$amount",
+              },
+            },
+          },
+        ]),
 
-    res.header("Content-Type", "text/csv");
-    res.attachment("transactions.csv");
-    return res.send(csv);
+        Transaction.aggregate([
+          {
+            $match: {
+              deleted: false,
+            },
+          },
+          {
+            $group: {
+              _id: "$status",
+              count: {
+                $sum: 1,
+              },
+            },
+          },
+        ]),
+
+        User.countDocuments({
+          status: "Active",
+        }),
+      ]);
+
+    const counts = {
+      Pending: 0,
+      Processing: 0,
+      "Funds Authorized": 0,
+      Successful: 0,
+      Failed: 0,
+      "Initiated from Web Portal": 0,
+    };
+
+    statusCounts.forEach((item) => {
+      counts[item._id] = item.count;
+    });
+
+    const failedRate =
+      counts.Successful + counts.Failed === 0
+        ? 0
+        : Number(
+            (
+              (counts.Failed / (counts.Successful + counts.Failed)) *
+              100
+            ).toFixed(2),
+          );
+
+    return res.status(200).json({
+      success: true,
+
+      stats: {
+        totalVolume: volume[0]?.total || 0,
+        pendingTasks: counts.Pending,
+        processing: counts.Processing,
+        authorized: counts["Funds Authorized"],
+        successful: counts.Successful,
+        failed: counts.Failed,
+        initiated: counts["Initiated from Web Portal"],
+        activeUsers,
+        failedRate,
+      },
+
+      transactions,
+
+      pagination: {
+        total,
+        page,
+        pages: Math.ceil(total / limit),
+        limit,
+        hasNextPage: page < Math.ceil(total / limit),
+        hasPrevPage: page > 1,
+      },
+    });
   } catch (err) {
-    console.error("Export CSV Error:", err);
-    res.status(500).json({ success: false, message: "CSV export failed" });
+    console.error("Admin Transactions:", err);
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to load transactions",
+    });
   }
 };
 
-// ===============================
-// EXPORT TRANSACTIONS AS PDF
-// ===============================
-exports.exportTransactionsPDF = async (req, res) => {
+// aadmin get by id
+exports.adminTransactionById = async (req, res) => {
   try {
-    const userId = req.user._id;
-    const { type, status, from, to, q } = req.query;
+    const transaction = await Transaction.findById(req.params.id)
 
-    const filter = { user: userId };
+      .populate("user", "-password -pinHash -refreshToken");
 
-    if (type) filter.type = type;
-    if (status) filter.status = status;
+    if (!transaction)
+      return res.status(404).json({
+        success: false,
 
-    if (from || to) {
-      filter.date = {};
-      if (from) filter.date.$gte = new Date(from);
-      if (to)
-        filter.date.$lte = new Date(new Date(to).setHours(23, 59, 59, 999));
-    }
+        message: "Transaction not found",
+      });
 
-    if (q) {
-      filter.$or = [
-        { recipientName: { $regex: q, $options: "i" } },
-        { description: { $regex: q, $options: "i" } },
-        { transactionId: { $regex: q, $options: "i" } },
-      ];
-    }
+    res.json({
+      success: true,
 
-    const transactions = await Transaction.find(filter).sort({ date: -1 });
-
-    const doc = new PDFDocument({ margin: 30, size: "A4" });
-
-    res.setHeader("Content-Type", "application/pdf");
-    res.setHeader(
-      "Content-Disposition",
-      "attachment; filename=transactions.pdf",
-    );
-
-    doc.pipe(res);
-
-    doc.fontSize(18).text("Transaction History", { align: "center" });
-    doc.moveDown();
-
-    transactions.forEach((txn, index) => {
-      doc.fontSize(10).text(`Transaction ${index + 1}`, { underline: true });
-      doc.text(`Transaction ID: ${txn.transactionId}`);
-      doc.text(`Type: ${txn.type}`);
-      doc.text(`Recipient: ${txn.recipientName || "N/A"}`);
-      doc.text(`Bank: ${txn.bankName || "N/A"}`);
-      doc.text(`Account: ${txn.accountNumber || "N/A"}`);
-      doc.text(`Amount: ₦${txn.amount}`);
-      doc.text(`Status: ${txn.status}`);
-      doc.text(`Date: ${txn.date.toLocaleString()}`);
-      doc.text(`Description: ${txn.description || "N/A"}`);
-      doc.moveDown();
+      transaction,
     });
-
-    doc.end();
   } catch (err) {
-    console.error("Export PDF Error:", err);
-    res.status(500).json({ success: false, message: "PDF export failed" });
+    res.status(500).json({
+      success: false,
+
+      message: "Unable to fetch transaction",
+    });
+  }
+};
+
+// DELETE /api/admin/transactions/:id
+
+exports.adminDeleteTransaction = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const transaction = await Transaction.findById(id);
+
+    if (!transaction) {
+      return res.status(404).json({
+        success: false,
+        message: "Transaction not found",
+      });
+    }
+
+    // Soft delete
+    transaction.deleted = true;
+    transaction.deletedAt = new Date();
+    transaction.deletedBy = req.user._id;
+
+    await transaction.save();
+    // Update the affected user's dashboard
+    const io = req.app.get("io");
+
+    if (io) {
+      await emitDashboardUpdate(io, transaction.user);
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Transaction deleted successfully",
+      deletedTransaction: transaction,
+    });
+  } catch (err) {
+    console.error("Admin Delete Transaction Error:", err);
+
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+};
+
+// ==========================================
+// GET TRANSACTION BY ID (ADMIN)
+// GET /api/admin/transactions/:id
+// ==========================================
+exports.adminTransactionById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const transaction = await Transaction.findById(id)
+      .populate(
+        "user",
+        "firstName lastName email profileImage accountNumber phone status",
+      )
+      .lean();
+
+    if (!transaction || transaction.deleted) {
+      return res.status(404).json({
+        success: false,
+        message: "Transaction not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      transaction,
+    });
+  } catch (error) {
+    console.error("Get Transaction Error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch transaction",
+    });
   }
 };

@@ -4,7 +4,7 @@ const router = express.Router();
 // ===============================
 // MIDDLEWARE IMPORTS
 // ===============================
-const { protect } = require("../middlewares/authMiddleware");
+const { protect, authorize } = require("../middlewares/authMiddleware");
 const verifyTransactionPin = require("../middlewares/verifyTransactionPin");
 const requireVerifiedKyc = require("../middlewares/requireVerifiedKyc");
 
@@ -14,17 +14,14 @@ const requireVerifiedKyc = require("../middlewares/requireVerifiedKyc");
 const {
   getTransactions,
   createTransaction,
- getTransactionById,
+  getTransactionById,
   updateTransaction,
   deleteTransactionById,
   getFiltered,
-  exportTransactionsCSV,
-  exportTransactionsPDF,
+  adminGetTransactions,
+  adminDeleteTransaction,
+  adminTransactionById,
 } = require("../controllers/transactionController");
-
-// Export
-router.get("/export/csv", protect, exportTransactionsCSV);
-router.get("/export/pdf", protect, exportTransactionsPDF);
 
 // All transactions for user
 router.get("/", protect, getTransactions);
@@ -34,21 +31,32 @@ router.get("/", protect, getTransactions);
 // ===============================
 router.post("/", protect, verifyTransactionPin, createTransaction);
 
-
-
-router.get(
-  "/:id",
-  protect,
-getTransactionById
-);
+router.get("/:id", protect, getTransactionById);
 
 // Update transaction (Admin / internal use)
 router.put("/:id", protect, updateTransaction);
 
-router.delete(
-  "/:id",
+router.delete("/:id", protect, deleteTransactionById);
+
+router.get(
+  "/admin/transactions",
   protect,
-  deleteTransactionById,
+  authorize("superadmin", "admin", "manager"),
+  adminGetTransactions,
+);
+
+router.delete(
+  "admin//transactions/:id",
+  protect,
+  authorize("superadmin", "admin", "manager"),
+  adminDeleteTransaction,
+);
+
+router.get(
+  "/admin/transactions/:id",
+  protect,
+  authorize("superadmin", "admin", "manager"),
+  adminTransactionById,
 );
 
 module.exports = router;

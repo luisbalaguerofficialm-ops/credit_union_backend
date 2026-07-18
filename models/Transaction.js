@@ -80,6 +80,18 @@ const TransactionSchema = new mongoose.Schema(
 
     bankCode: String,
 
+    deleted: {
+      type: Boolean,
+      default: false,
+    },
+
+    deletedAt: Date,
+
+    deletedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+
     active: {
       type: Boolean,
       default: true,

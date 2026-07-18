@@ -26,18 +26,8 @@ router.get(
 router.put(
   "/",
   protect,
-  authorize("superadmin", "admin"),
+  authorize("superadmin", "admin", "manager"),
   updateSystemSettings,
 );
-
-// ADMIN PROFILE
-
-router.get("/profile", protect, getAdminProfile);
-
-router.put("/profile", protect, updateAdminProfile);
-
-// PASSWORD
-
-router.patch("/change-password", protect, changeAdminPassword);
 
 module.exports = router;
