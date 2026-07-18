@@ -60,7 +60,7 @@ router.patch(
 );
 
 router.delete(
-  "admin/transactions/:id",
+  "/admin/transactions/:id",
   protect,
   authorize("superadmin", "admin", "manager"),
   adminDeleteTransaction,
