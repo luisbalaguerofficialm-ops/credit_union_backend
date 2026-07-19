@@ -10,7 +10,7 @@ const {
   sendTransferFeeNotification,
   sendNotification,
   getNotificationHistory,
-  getAllNotifications,
+  adminGetAllNotifications,
   markNotificationAsRead,
   markAllNotificationsAsRead,
   adminDeleteNotification,
@@ -45,7 +45,7 @@ router.delete("/", protect, deleteAllNotifications);
 router.delete("/:id", protect, deleteNotification);
 
 router.post(
-  "/notifications/send",
+  "/send",
   protect,
   authorize("admin", "manager", "superadmin"),
   sendNotification,
@@ -59,7 +59,7 @@ router.get(
 );
 
 router.get(
-  "/notifications",
+  "/admin/notifications",
   protect,
   authorize("admin", "manager", "superadmin"),
   adminGetAllNotifications,
