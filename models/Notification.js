@@ -158,8 +158,6 @@ NotificationSchema.pre("save", function (next) {
   if (!this.category && this.type) {
     this.category = this.type;
   }
-
-  next();
 });
 
 module.exports = mongoose.model("Notification", NotificationSchema);
