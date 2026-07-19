@@ -1,3 +1,5 @@
+const Template = require("../models/Template");
+const User = require("../models/User");
 const Notification = require("../models/Notification");
 const emitDashboardUpdate = require("../utils/emitDashboardUpdate");
 const { sendEmail, sendSMS } = require("../utils/notify");
@@ -98,188 +100,6 @@ exports.createNotification = async ({
   } catch (err) {
     console.error("Create Notification Error:", err);
     return null;
-  }
-};
-
-exports.sendNotification = async (req, res) => {
-  try {
-    const {
-      title,
-      message,
-      templateId,
-      channels = [],
-      audience = "all",
-      userId,
-      schedule = "immediate",
-      scheduledTime,
-    } = req.body;
-
-    if (!title && !templateId) {
-      return res.status(400).json({
-        success: false,
-        message: "Title or template is required",
-      });
-    }
-
-    /* ================================
-       FORMAT CHANNELS
-    ================================ */
-
-    const formattedChannels = channels.map((c) => {
-      if (c === "email") return "Email";
-      if (c === "sms") return "SMS";
-      if (c === "inApp") return "InApp";
-      return c;
-    });
-
-    /* ================================
-       AUDIENCE MAP
-    ================================ */
-
-    const audienceMap = {
-      all: "All Users",
-      verified: "Verified Users",
-      kyc_pending: "KYC Pending Users",
-      inactive: "Inactive Users",
-      specific: "Specific User",
-    };
-
-    const target = audienceMap[audience] || "All Users";
-
-    /* ================================
-       FETCH TEMPLATE
-    ================================ */
-
-    let template;
-
-    if (templateId) {
-      template = await Template.findById(templateId);
-
-      if (!template) {
-        return res.status(404).json({
-          success: false,
-          message: "Template not found",
-        });
-      }
-    }
-
-    const finalTitle = template?.subject || title;
-    const finalMessageContent = template?.content || message;
-
-    /* ================================
-       FIND USER EMAIL
-    ================================ */
-    let user = null;
-    let userEmail = null;
-
-    if (audience === "specific" && userId) {
-      user = await User.findById(userId); // ✅ FIXED
-
-      if (!user) {
-        return res.status(404).json({
-          success: false,
-          message: "User not found",
-        });
-      }
-
-      userEmail = user.email;
-    }
-
-    // ✅ Build full name correctly
-    const fullName = user
-      ? [user.firstName, user.lastName].filter(Boolean).join(" ")
-      : "Valued Customer";
-
-    // ✅ Generate email AFTER fetching user
-    const emailHtml = dynamicNotificationTemplate({
-      variables: {
-        user_name: fullName,
-        message: finalMessageContent,
-        subject: finalTitle,
-      },
-    });
-    /* ================================
-       SAVE NOTIFICATION
-    ================================ */
-
-    const notification = await Notification.create({
-      title: finalTitle,
-      message: finalMessageContent,
-      channels: formattedChannels,
-      target,
-      specificUserId: audience === "specific" ? userId : null,
-      status: "Delivered",
-      sentToCount: audience === "specific" ? 1 : 0,
-      deliveryTime:
-        schedule === "scheduled" ? new Date(scheduledTime) : new Date(),
-      createdBy: req.admin?.id,
-    });
-
-    /* ================================
-       SEND EMAIL
-    ================================ */
-
-    if (formattedChannels.includes("Email") && userEmail) {
-      try {
-        const emailResponse = await resend.emails.send({
-          from: FROM_EMAIL,
-          to: userEmail,
-          subject: finalTitle,
-          html: emailHtml,
-          replyTo: REPLY_TO_EMAIL,
-        });
-
-        console.log("✅ Resend response:", emailResponse);
-      } catch (emailError) {
-        console.error("❌ Email send error:", emailError);
-      }
-    }
-
-    return res.status(201).json({
-      success: true,
-      message: "Notification sent successfully",
-      notification,
-    });
-  } catch (err) {
-    console.error("Send notification error:", err);
-
-    res.status(500).json({
-      success: false,
-      message: err.message,
-    });
-  }
-};
-
-exports.getNotificationHistory = async (req, res) => {
-  try {
-    // Fetch all notifications, sorted by newest first
-    const notifications = await Notification.find()
-      .sort({ createdAt: -1 })
-      .limit(7)
-      .populate("createdBy", "name email"); // optional: populate admin name/email
-
-    // Format response for frontend table
-    const formattedNotifications = notifications.map((n) => ({
-      id: n._id,
-      title: n.title,
-      channel: n.channels.join(", "), // e.g. "Email, InApp"
-      audience: n.target,
-      sentCount: n.sentToCount || 0,
-      createdAt: n.createdAt,
-      createdBy: n.createdBy?.name || "Admin",
-      status: n.status,
-    }));
-
-    return res.status(200).json({
-      success: true,
-      notifications: formattedNotifications,
-    });
-  } catch (err) {
-    console.error("Fetch notification history error:", err);
-    res.status(500).json({
-      success: false,
-      message: "Failed to fetch notification history",
-    });
   }
 };
 
@@ -458,5 +278,484 @@ exports.sendTransferFeeNotification = async ({
   } catch (err) {
     console.error("Transfer Fee Notification Error:", err);
     return null;
+  }
+};
+
+// ADMIN NOTIFICATION PATH
+
+// /ADMIN  SENDING NOTIFICATION TO USERS==================================
+
+exports.sendNotification = async (req, res) => {
+  try {
+    const {
+      title,
+      message,
+      templateId,
+      channels = [],
+      audience = "all",
+      userId,
+      schedule = "immediate",
+      scheduledTime,
+    } = req.body;
+
+    if (!title && !templateId) {
+      return res.status(400).json({
+        success: false,
+        message: "Title or template is required",
+      });
+    }
+
+    /* ================================
+       FORMAT CHANNELS
+    ================================ */
+
+    const formattedChannels = channels.map((c) => {
+      if (c === "email") return "Email";
+      if (c === "sms") return "SMS";
+      if (c === "inApp") return "InApp";
+      return c;
+    });
+
+    /* ================================
+       AUDIENCE MAP
+    ================================ */
+
+    const audienceMap = {
+      all: "All Users",
+      verified: "Verified Users",
+      inactive: "Inactive Users",
+      specific: "Specific User",
+    };
+
+    const target = audienceMap[audience] || "All Users";
+
+    /* ================================
+       FETCH TEMPLATE
+    ================================ */
+
+    let template;
+
+    if (templateId) {
+      template = await Template.findById(templateId);
+
+      if (!template) {
+        return res.status(404).json({
+          success: false,
+          message: "Template not found",
+        });
+      }
+    }
+
+    const finalTitle = template?.subject || title;
+    const finalMessageContent = template?.content || message;
+
+    /* ================================
+       FIND USER EMAIL
+    ================================ */
+    let user = null;
+    let userEmail = null;
+
+    if (audience === "specific" && userId) {
+      user = await User.findById(userId); // ✅ FIXED
+
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: "User not found",
+        });
+      }
+
+      userEmail = user.email;
+    }
+
+    // ✅ Build full name correctly
+    const fullName = user
+      ? [user.firstName, user.lastName].filter(Boolean).join(" ")
+      : "Valued Customer";
+
+    // ✅ Generate email AFTER fetching user
+    const emailHtml = sendEmail({
+      variables: {
+        user_name: fullName,
+        message: finalMessageContent,
+        subject: finalTitle,
+      },
+    });
+    /* ================================
+       SAVE NOTIFICATION
+    ================================ */
+
+    const notification = await Notification.create({
+      title: finalTitle,
+      message: finalMessageContent,
+      channels: formattedChannels,
+      target,
+      specificUserId: audience === "specific" ? userId : null,
+      status: "Delivered",
+      sentToCount: audience === "specific" ? 1 : 0,
+      deliveryTime:
+        schedule === "scheduled" ? new Date(scheduledTime) : new Date(),
+      createdBy: req.user?._id,
+      createdByType: req.user?.role || "system",
+    });
+
+    /* ================================
+       SEND EMAIL
+    ================================ */
+
+    if (formattedChannels.includes("Email") && userEmail) {
+      try {
+        const emailResponse = await resend.emails.send({
+          from: FROM_EMAIL,
+          to: userEmail,
+          subject: finalTitle,
+          html: emailHtml,
+          replyTo: REPLY_TO_EMAIL,
+        });
+
+        console.log("✅ Resend response:", emailResponse);
+      } catch (emailError) {
+        console.error("❌ Email send error:", emailError);
+      }
+    }
+
+    return res.status(201).json({
+      success: true,
+      message: "Notification sent successfully",
+      notification,
+    });
+  } catch (err) {
+    console.error("Send notification error:", err);
+
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
+
+exports.getNotificationHistory = async (req, res) => {
+  try {
+    const notifications = await Notification.find()
+      .sort({ createdAt: -1 })
+      .limit(7)
+      .populate("createdBy", "name email");
+
+    // Format response for frontend table
+    const formattedNotifications = notifications.map((n) => ({
+      id: n._id,
+      title: n.title,
+      channel: n.channels.join(", "), // e.g. "Email, InApp"
+      audience: n.target,
+      sentCount: n.sentToCount || 0,
+      createdAt: n.createdAt,
+      createdBy: n.createdBy?.name || "Admin",
+      status: n.status,
+    }));
+
+    return res.status(200).json({
+      success: true,
+      notifications: formattedNotifications,
+    });
+  } catch (err) {
+    console.error("Fetch notification history error:", err);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch notification history",
+    });
+  }
+};
+
+// ======================
+
+exports.adminGetAllNotifications = async (req, res) => {
+  try {
+    let {
+      page = 1,
+      limit = 5,
+      search = "",
+      status,
+      channel,
+      target,
+      sort = "newest",
+    } = req.query;
+
+    page = Number(page);
+    limit = Number(limit);
+
+    const query = {};
+
+    /*
+    --------------------
+    Search
+    --------------------
+    */
+
+    if (search) {
+      query.$or = [
+        {
+          title: {
+            $regex: search,
+            $options: "i",
+          },
+        },
+        {
+          message: {
+            $regex: search,
+            $options: "i",
+          },
+        },
+      ];
+    }
+
+    /*
+    --------------------
+    Status
+    --------------------
+    */
+
+    if (status && status !== "All Activities") {
+      query.status = status;
+    }
+
+    /*
+    --------------------
+    Channel
+    --------------------
+    */
+
+    if (channel && channel !== "All Channels") {
+      query.channels = channel;
+    }
+
+    /*
+    --------------------
+    Target
+    --------------------
+    */
+
+    if (target) {
+      query.target = target;
+    }
+
+    /*
+    --------------------
+    Sort
+    --------------------
+    */
+
+    let sortOption = {
+      createdAt: -1,
+    };
+
+    if (sort === "oldest") {
+      sortOption = {
+        createdAt: 1,
+      };
+    }
+
+    const total = await Notification.countDocuments(query);
+
+    const notifications = await Notification.find(query)
+      .populate("createdBy", "firstName lastName email")
+      .populate("specificUserId", "firstName lastName email")
+      .sort(sortOption)
+      .skip((page - 1) * limit)
+      .limit(limit);
+
+    /*
+    --------------------
+    Dashboard Stats
+    --------------------
+    */
+
+    const unread = await Notification.countDocuments({
+      ...query,
+      read: false,
+    });
+
+    const read = await Notification.countDocuments({
+      ...query,
+      read: true,
+    });
+
+    const delivered = await Notification.countDocuments({
+      status: "Delivered",
+    });
+
+    const pending = await Notification.countDocuments({
+      status: "Pending",
+    });
+
+    const failed = await Notification.countDocuments({
+      status: "Failed",
+    });
+
+    res.status(200).json({
+      success: true,
+
+      metrics: {
+        total,
+        unread,
+        read,
+        delivered,
+        pending,
+        failed,
+      },
+
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
+      },
+
+      notifications,
+    });
+  } catch (err) {
+    console.error(err);
+
+    res.status(500).json({
+      success: false,
+      message: "Unable to fetch notifications.",
+    });
+  }
+};
+
+// ADMIN . Mark Single Notification as Read
+exports.markNotificationAsRead = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const notification = await Notification.findById(id);
+
+    if (!notification) {
+      return res.status(404).json({
+        success: false,
+        message: "Notification not found",
+      });
+    }
+
+    notification.read = true;
+
+    // prevent duplicates
+    if (
+      req.user?._id &&
+      !notification.readBy.some(
+        (userId) => userId.toString() === req.user._id.toString(),
+      )
+    ) {
+      notification.readBy.push(req.user._id);
+    }
+
+    await notification.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Notification marked as read",
+      notification,
+    });
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// ADMIN Mark All Notifications as Read
+
+exports.markAllNotificationsAsRead = async (req, res) => {
+  try {
+    await Notification.updateMany(
+      {
+        read: false,
+      },
+      {
+        $set: {
+          read: true,
+        },
+      },
+    );
+
+    // keep track of who marked them
+    await Notification.updateMany(
+      {
+        readBy: {
+          $ne: req.user._id,
+        },
+      },
+      {
+        $push: {
+          readBy: req.user._id,
+        },
+      },
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "All notifications marked as read",
+    });
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// ADMIN Delete Single Notification
+
+exports.adminDeleteNotification = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const notification = await Notification.findById(id);
+
+    if (!notification) {
+      return res.status(404).json({
+        success: false,
+        message: "Notification not found",
+      });
+    }
+
+    await notification.deleteOne();
+
+    return res.status(200).json({
+      success: true,
+      message: "Notification deleted successfully",
+    });
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// ADMIN Delete All Notifications
+
+exports.adminDeleteAllNotifications = async (req, res) => {
+  try {
+    const result = await Notification.deleteMany({});
+
+    return res.status(200).json({
+      success: true,
+      message: `${result.deletedCount} notifications deleted successfully`,
+      deletedCount: result.deletedCount,
+    });
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
   }
 };

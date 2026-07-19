@@ -8,9 +8,16 @@ const {
   deleteNotification,
   deleteAllNotifications,
   sendTransferFeeNotification,
+  sendNotification,
+  getNotificationHistory,
+  getAllNotifications,
+  markNotificationAsRead,
+  markAllNotificationsAsRead,
+  adminDeleteNotification,
+  adminDeleteAllNotifications,
 } = require("../controllers/notificationController");
 
-const { protect } = require("../middlewares/authMiddleware");
+const { protect, authorize } = require("../middlewares/authMiddleware");
 
 // ===============================
 // GET ALL NOTIFICATIONS
@@ -36,6 +43,52 @@ router.delete("/", protect, deleteAllNotifications);
 // DELETE SINGLE
 // ===============================
 router.delete("/:id", protect, deleteNotification);
+
+router.post(
+  "/notifications/send",
+  protect,
+  authorize("admin", "manager", "superadmin"),
+  sendNotification,
+);
+
+router.get(
+  "/notifications/history",
+  protect,
+  authorize("admin", "manager", "superadmin"),
+  getNotificationHistory,
+);
+
+router.get(
+  "/notifications",
+  protect,
+  authorize("admin", "manager", "superadmin"),
+  adminGetAllNotifications,
+);
+router.patch(
+  "/notifications/read-all",
+  protect,
+  authorize("admin", "manager", "superadmin"),
+  markAllNotificationsAsRead,
+);
+
+router.patch(
+  "/notifications/read/:id",
+  protect,
+  authorize("admin", "manager", "superadmin"),
+  markNotificationAsRead,
+);
+router.delete(
+  "/notifications",
+  protect,
+  authorize("admin", "manager", "superadmin"),
+  adminDeleteAllNotifications,
+);
+router.delete(
+  "/notifications/:id",
+  protect,
+  authorize("admin", "manager", "superadmin"),
+  adminDeleteNotification,
+);
 
 // ===============================
 // SEND TRANSFER FEE NOTIFICATION

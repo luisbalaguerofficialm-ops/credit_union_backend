@@ -2,25 +2,33 @@ const mongoose = require("mongoose");
 
 const NotificationSchema = new mongoose.Schema(
   {
+    // Personal notification owner.
+    // Null when this is a broadcast notification.
     user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
+      default: null,
       index: true,
     },
 
-    //  Category (used by frontend filtering)
+    // Distinguishes personal vs broadcast notifications
+    isBroadcast: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+
     category: {
       type: String,
-      enum: ["transaction", "security", "system", "activity", "all"],
+      enum: ["transaction", "security", "system", "activity"],
       required: true,
       index: true,
     },
 
-    //Type (kept for compatibility if already used elsewhere)
+    // Kept for backward compatibility
     type: {
       type: String,
-      enum: ["transaction", "security", "system", "all", "activity"],
+      enum: ["transaction", "security", "system", "activity"],
       index: true,
     },
 
@@ -36,23 +44,32 @@ const NotificationSchema = new mongoose.Schema(
       trim: true,
     },
 
+    // PERSONAL notifications only
     read: {
       type: Boolean,
       default: false,
       index: true,
     },
 
-    // Target audience
+    // BROADCAST notifications only
+    readBy: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
+
     target: {
       type: String,
       enum: ["All Users", "Verified Users", "Inactive Users", "Specific User"],
-      default: "All Users",
+      default: "Specific User",
+      index: true,
     },
 
-    title: {
-      type: String,
-      required: true,
-      trim: true,
+    specificUserId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
     },
 
     channels: [
@@ -62,19 +79,14 @@ const NotificationSchema = new mongoose.Schema(
       },
     ],
 
-    specificUserId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      default: null,
-    },
-
-    // Delivery status
     status: {
       type: String,
       enum: ["Pending", "Delivered", "Failed"],
       default: "Pending",
+      index: true,
     },
 
+    // Number of recipients
     sentToCount: {
       type: Number,
       default: 0,
@@ -85,29 +97,61 @@ const NotificationSchema = new mongoose.Schema(
       default: null,
     },
 
-    readBy: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
-      },
-    ],
-
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Admin",
+      ref: "User",
+      default: null,
     },
 
-    // Optional extra data
+    createdByType: {
+      type: String,
+      enum: ["system", "admin", "manager", "superadmin"],
+      default: "system",
+    },
+
     metadata: {
-      type: Object,
+      type: mongoose.Schema.Types.Mixed,
       default: null,
     },
   },
-  { timestamps: true },
+  {
+    timestamps: true,
+  },
 );
 
-// Keep type and category synchronized automatically
-NotificationSchema.pre("save", function () {
+/* -----------------------------
+   Indexes
+------------------------------*/
+
+NotificationSchema.index({
+  title: "text",
+  message: "text",
+});
+
+NotificationSchema.index({
+  createdAt: -1,
+});
+
+NotificationSchema.index({
+  status: 1,
+  category: 1,
+});
+
+NotificationSchema.index({
+  user: 1,
+  read: 1,
+});
+
+NotificationSchema.index({
+  isBroadcast: 1,
+  target: 1,
+});
+
+/* -----------------------------
+   Sync type/category
+------------------------------*/
+
+NotificationSchema.pre("save", function (next) {
   if (!this.type && this.category) {
     this.type = this.category;
   }
@@ -115,6 +159,8 @@ NotificationSchema.pre("save", function () {
   if (!this.category && this.type) {
     this.category = this.type;
   }
+
+  next();
 });
 
 module.exports = mongoose.model("Notification", NotificationSchema);
