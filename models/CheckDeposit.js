@@ -12,17 +12,20 @@ const CheckDepositSchema = new mongoose.Schema(
     accountType: {
       type: String,
       required: true,
+      trim: true,
     },
 
     accountNumber: {
       type: String,
       required: true,
+      trim: true,
     },
 
     amount: {
       type: Number,
       required: true,
       min: 1,
+      index: true,
     },
 
     frontImage: {
@@ -42,16 +45,36 @@ const CheckDepositSchema = new mongoose.Schema(
       index: true,
     },
 
+    // Admin can manually flag suspicious checks
+    flagged: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+
+    flagReason: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
     reviewedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
     },
 
-    reviewedAt: Date,
+    reviewedAt: {
+      type: Date,
+    },
 
-    rejectionReason: String,
+    rejectionReason: {
+      type: String,
+      default: "",
+    },
 
-    depositedAt: Date,
+    depositedAt: {
+      type: Date,
+    },
   },
   {
     timestamps: true,
@@ -59,4 +82,7 @@ const CheckDepositSchema = new mongoose.Schema(
 );
 
 CheckDepositSchema.index({ user: 1, createdAt: -1 });
+CheckDepositSchema.index({ status: 1, createdAt: -1 });
+CheckDepositSchema.index({ amount: -1 });
+
 module.exports = mongoose.model("CheckDeposit", CheckDepositSchema);

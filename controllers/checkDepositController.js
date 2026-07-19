@@ -206,15 +206,97 @@ exports.getMyCheckDeposits = async (req, res) => {
   }
 };
 
+// =====================
 exports.getAllCheckDeposits = async (req, res) => {
   try {
-    const deposits = await CheckDeposit.find()
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 10;
+    const sort = req.query.sort || "newest";
+    const filter = req.query.filter || "all";
+
+    const query = {};
+
+    if (filter === "pending") {
+      query.status = "Pending";
+    }
+
+    if (filter === "high") {
+      query.amount = { $gte: 50000 };
+    }
+
+    if (filter === "flagged") {
+      query.amount = { $gte: 50000 };
+    }
+
+    let sortOption = { createdAt: -1 };
+
+    if (sort === "oldest") {
+      sortOption = { createdAt: 1 };
+    }
+
+    if (sort === "amount-high") {
+      sortOption = { amount: -1 };
+    }
+
+    if (sort === "amount-low") {
+      sortOption = { amount: 1 };
+    }
+
+    const total = await CheckDeposit.countDocuments(query);
+
+    const deposits = await CheckDeposit.find(query)
       .populate("user", "firstName lastName email accountNumber profileImage")
-      .sort({ createdAt: -1 });
+      .sort(sortOption)
+      .skip((page - 1) * limit)
+      .limit(limit);
+
+    const pendingCount = await CheckDeposit.countDocuments({
+      status: "Pending",
+    });
+
+    const pendingVolumeAgg = await CheckDeposit.aggregate([
+      {
+        $match: {
+          status: "Pending",
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          total: {
+            $sum: "$amount",
+          },
+          average: {
+            $avg: "$amount",
+          },
+        },
+      },
+    ]);
+
+    const flaggedCount = await CheckDeposit.countDocuments({
+      amount: { $gte: 50000 },
+    });
 
     res.status(200).json({
       success: true,
-      count: deposits.length,
+
+      metrics: {
+        pendingCount,
+
+        pendingVolume: pendingVolumeAgg[0]?.total || 0,
+
+        averageDeposit: pendingVolumeAgg[0]?.average || 0,
+
+        flaggedCount,
+      },
+
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
+      },
+
       deposits,
     });
   } catch (err) {
@@ -226,6 +308,8 @@ exports.getAllCheckDeposits = async (req, res) => {
     });
   }
 };
+
+// ======================================
 
 exports.approveCheckDeposit = async (req, res) => {
   try {
