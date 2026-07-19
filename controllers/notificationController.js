@@ -445,11 +445,13 @@ exports.getNotificationHistory = async (req, res) => {
     const formattedNotifications = notifications.map((n) => ({
       id: n._id,
       title: n.title,
-      channel: n.channels.join(", "), // e.g. "Email, InApp"
+      channel: n.channels.join(", "),
       audience: n.target,
       sentCount: n.sentToCount || 0,
       createdAt: n.createdAt,
-      createdBy: n.createdBy?.name || "Admin",
+      createdBy: n.createdBy?.name,
+      createdByRole: n.createdBy?.role,
+      createdByEmail: n.createdBy?.email,
       status: n.status,
     }));
 
