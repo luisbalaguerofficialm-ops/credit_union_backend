@@ -46,12 +46,6 @@ router.patch(
   authorize("superadmin", "admin"),
   updateUser,
 );
-router.delete(
-  "/admin/users/:id",
-  protect,
-  authorize("superadmin", "admin", "manager"),
-  adminDeleteUser,
-);
 
 // PATCH /api/admin/users/:id/activate
 router.patch(
@@ -111,6 +105,12 @@ router.post(
   protect,
   authorize("superadmin", "admin"),
   debitWallet,
+);
+router.delete(
+  "/users/:id",
+  protect,
+  authorize("superadmin", "admin", "manager"),
+  adminDeleteUser,
 );
 
 // ======================================

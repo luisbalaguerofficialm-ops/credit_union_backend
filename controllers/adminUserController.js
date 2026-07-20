@@ -9,7 +9,7 @@ exports.getAllUsers = async (req, res) => {
   try {
     const {
       page = 1,
-      limit = 5,
+      limit = 4,
       search = "",
       status = "All",
       accountType = "All",
