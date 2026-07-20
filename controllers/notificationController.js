@@ -1,6 +1,7 @@
 const Template = require("../models/Template");
 const User = require("../models/User");
 const Notification = require("../models/Notification");
+const Contact = require("../models/Contact");
 const emitDashboardUpdate = require("../utils/emitDashboardUpdate");
 const { sendEmail, sendSMS } = require("../utils/notify");
 
@@ -434,118 +435,34 @@ exports.sendNotification = async (req, res) => {
   }
 };
 
-exports.getNotificationHistory = async (req, res) => {
-  try {
-    const {
-      page = 1,
-      limit = 10,
-      channel,
-      status,
-      audience,
-      search,
-    } = req.query;
-
-    const query = {};
-
-    // Search by title or message
-    if (search) {
-      query.$or = [
-        { title: { $regex: search, $options: "i" } },
-        { message: { $regex: search, $options: "i" } },
-      ];
-    }
-
-    // Filter by channel
-    if (channel && channel !== "All") {
-      query.channels = channel;
-    }
-
-    // Filter by status
-    if (status && status !== "All") {
-      query.status = status;
-    }
-
-    // Filter by audience
-    if (audience && audience !== "All") {
-      query.target = audience;
-    }
-
-    const currentPage = Number(page);
-    const perPage = Number(limit);
-    const skip = (currentPage - 1) * perPage;
-
-    const total = await Notification.countDocuments(query);
-
-    const notifications = await Notification.find(query)
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(perPage)
-      .populate("createdBy", "name email role");
-
-    const formattedNotifications = notifications.map((n) => ({
-      id: n._id,
-      title: n.title,
-      message: n.message,
-      channels: n.channels,
-      audience: n.target,
-      sentCount: n.sentToCount || 0,
-      createdAt: n.createdAt,
-      createdBy: n.createdBy?.name || "System",
-      createdByRole: n.createdBy?.role || "-",
-      createdByEmail: n.createdBy?.email || "-",
-      status: n.status,
-    }));
-
-    return res.status(200).json({
-      success: true,
-      notifications: formattedNotifications,
-
-      pagination: {
-        page: currentPage,
-        limit: perPage,
-        total,
-        totalPages: Math.ceil(total / perPage),
-        hasNextPage: currentPage < Math.ceil(total / perPage),
-        hasPrevPage: currentPage > 1,
-      },
-    });
-  } catch (err) {
-    console.error("Fetch notification history error:", err);
-
-    res.status(500).json({
-      success: false,
-      message: "Failed to fetch notification history",
-    });
-  }
-};
-
 // ======================
 
 exports.adminGetAllNotifications = async (req, res) => {
   try {
     let {
       page = 1,
-      limit = 5,
+      limit = 4,
       search = "",
       status,
       channel,
       target,
+      type,
       sort = "newest",
     } = req.query;
 
     page = Number(page);
     limit = Number(limit);
 
-    const query = {};
-
     /*
-    --------------------
-    Search
-    --------------------
+    ====================================
+    Notification Query
+    ====================================
     */
 
+    const notificationQuery = {};
+
     if (search) {
-      query.$or = [
+      notificationQuery.$or = [
         {
           title: {
             $regex: search,
@@ -561,99 +478,203 @@ exports.adminGetAllNotifications = async (req, res) => {
       ];
     }
 
-    /*
-    --------------------
-    Status
-    --------------------
-    */
-
-    if (status && status !== "All Activities") {
-      query.status = status;
+    if (status && status !== "All Activities" && status !== "Received") {
+      notificationQuery.status = status;
     }
 
-    /*
-    --------------------
-    Channel
-    --------------------
-    */
-
-    if (channel && channel !== "All Channels") {
-      query.channels = channel;
+    if (channel && channel !== "All Channels" && channel !== "Contact Form") {
+      notificationQuery.channels = channel;
     }
 
-    /*
-    --------------------
-    Target
-    --------------------
-    */
+    if (type && type !== "All" && type !== "support") {
+      notificationQuery.type = type;
+    }
 
     if (target) {
-      query.target = target;
+      notificationQuery.target = target;
     }
 
-    /*
-    --------------------
-    Sort
-    --------------------
-    */
-
-    let sortOption = {
-      createdAt: -1,
-    };
-
-    if (sort === "oldest") {
-      sortOption = {
-        createdAt: 1,
-      };
-    }
-
-    const total = await Notification.countDocuments(query);
-
-    const notifications = await Notification.find(query)
-      .populate("createdBy", "firstName lastName email")
+    const notifications = await Notification.find(notificationQuery)
+      .populate("createdBy", "firstName lastName name email role")
       .populate("specificUserId", "firstName lastName email")
-      .sort(sortOption)
-      .skip((page - 1) * limit)
-      .limit(limit);
+      .lean();
 
     /*
-    --------------------
-    Dashboard Stats
-    --------------------
+    ====================================
+    Contact Query
+    ====================================
     */
 
-    const unread = await Notification.countDocuments({
-      ...query,
-      read: false,
-    });
+    const contactQuery = {};
 
-    const read = await Notification.countDocuments({
-      ...query,
-      read: true,
-    });
+    if (search) {
+      contactQuery.$or = [
+        {
+          subject: {
+            $regex: search,
+            $options: "i",
+          },
+        },
+        {
+          message: {
+            $regex: search,
+            $options: "i",
+          },
+        },
+        {
+          fullName: {
+            $regex: search,
+            $options: "i",
+          },
+        },
+        {
+          email: {
+            $regex: search,
+            $options: "i",
+          },
+        },
+      ];
+    }
 
-    const delivered = await Notification.countDocuments({
-      status: "Delivered",
-    });
+    let contacts = [];
 
-    const pending = await Notification.countDocuments({
-      status: "Pending",
-    });
+    // Only fetch contacts if Support or All is selected
+    if (!type || type === "All" || type === "support") {
+      contacts = await Contact.find(contactQuery).lean();
 
-    const failed = await Notification.countDocuments({
-      status: "Failed",
-    });
+      // Filter Contact Form channel
+      if (channel && channel !== "All Channels" && channel !== "Contact Form") {
+        contacts = [];
+      }
 
-    res.status(200).json({
+      // Contacts only have "Received" status
+      if (status && status !== "All Activities" && status !== "Received") {
+        contacts = [];
+      }
+    }
+
+    /*
+    ====================================
+    Normalize Notifications
+    ====================================
+    */
+
+    const notificationData = notifications.map((item) => ({
+      id: item._id,
+
+      recordType: "notification",
+
+      type: item.type,
+
+      title: item.title || null,
+
+      subject: null,
+
+      titleOrSubject: item.title,
+
+      message: item.message,
+
+      channels: item.channels,
+
+      target: item.target,
+
+      sentCount: item.sentToCount || 0,
+
+      createdAt: item.createdAt,
+
+      createdBy:
+        item.createdBy?.name ||
+        `${item.createdBy?.firstName || ""} ${
+          item.createdBy?.lastName || ""
+        }`.trim() ||
+        "System",
+
+      createdByEmail: item.createdBy?.email || "-",
+
+      createdByRole: item.createdBy?.role || "-",
+
+      status: item.status,
+    }));
+
+    /*
+    ====================================
+    Normalize Contacts
+    ====================================
+    */
+
+    const contactData = contacts.map((item) => ({
+      id: item._id,
+
+      recordType: "contact",
+
+      type: "support",
+
+      title: null,
+
+      subject: item.subject,
+
+      titleOrSubject: item.subject,
+
+      message: item.message,
+
+      channels: ["Contact Form"],
+
+      target: item.email,
+
+      sentCount: 1,
+
+      createdAt: item.createdAt,
+
+      createdBy: item.fullName,
+
+      createdByEmail: item.email,
+
+      createdByRole: "Customer",
+
+      status: "Received",
+    }));
+
+    /*
+    ====================================
+    Merge + Sort
+    ====================================
+    */
+
+    let data = [...notificationData, ...contactData];
+
+    data.sort((a, b) =>
+      sort === "oldest"
+        ? new Date(a.createdAt) - new Date(b.createdAt)
+        : new Date(b.createdAt) - new Date(a.createdAt),
+    );
+
+    /*
+    ====================================
+    Pagination
+    ====================================
+    */
+
+    const total = data.length;
+
+    const start = (page - 1) * limit;
+
+    const end = start + limit;
+
+    const paginatedData = data.slice(start, end);
+
+    /*
+    ====================================
+    Response
+    ====================================
+    */
+
+    return res.status(200).json({
       success: true,
+
+      notifications: paginatedData,
 
       metrics: {
         total,
-        unread,
-        read,
-        delivered,
-        pending,
-        failed,
       },
 
       pagination: {
@@ -661,20 +682,19 @@ exports.adminGetAllNotifications = async (req, res) => {
         limit,
         total,
         pages: Math.ceil(total / limit),
+        hasNextPage: page < Math.ceil(total / limit),
+        hasPrevPage: page > 1,
       },
-
-      notifications,
     });
   } catch (err) {
-    console.error(err);
+    console.error("Admin notifications error:", err);
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Unable to fetch notifications.",
     });
   }
 };
-
 // ADMIN . Mark Single Notification as Read
 exports.markNotificationAsRead = async (req, res) => {
   try {

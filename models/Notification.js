@@ -27,7 +27,14 @@ const NotificationSchema = new mongoose.Schema(
     // Kept for backward compatibility
     type: {
       type: String,
-      enum: ["transaction", "security", "system", "activity"],
+      enum: [
+        "system",
+        "security",
+        "transaction",
+        "activity",
+        "authentication",
+        "support",
+      ],
       index: true,
     },
 

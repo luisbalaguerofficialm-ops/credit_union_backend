@@ -190,10 +190,16 @@ exports.registerUser = async (req, res) => {
 
     await createNotification({
       userId: user._id,
-      title: "Welcome to Credit Union",
+
+      title: "Welcome to America Bank",
       message:
         "Your account has been created successfully. Welcome to America Bank.",
+      type: "authentication",
       category: "system",
+      channels: ["Email", "In-App"],
+      target: "Individual",
+      status: "Delivered",
+      sentToCount: 1,
       email: user.email,
       metadata: {
         accountNumber: user.accountNumber,
@@ -293,7 +299,6 @@ Please change your PIN after login.
 // LOGIN USER
 // ===============================
 exports.loginUser = async (req, res) => {
- 
   try {
     const { identifier, password, rememberMe } = req.body;
 
@@ -373,9 +378,15 @@ exports.loginUser = async (req, res) => {
 
     await createNotification({
       userId: user._id,
+
       title: "New Login Detected",
       message: `A login was detected from ${req.headers["user-agent"]}.`,
-      category: "system",
+      type: "authentication",
+      category: "security",
+      channels: ["Email", "In-App"],
+      target: "Individual",
+      status: "Delivered",
+      sentToCount: 1,
       email: user.email,
       metadata: {
         ipAddress: req.ip,
@@ -505,12 +516,20 @@ exports.sendOtpController = async (req, res) => {
     await user.save();
     await createNotification({
       userId: user._id,
+
       title: "Verification Code Sent",
       message: `A verification code has been sent to your registered email for ${purpose}.`,
-      category: "system",
+      type: purpose,
+      category: "security",
+      channels: ["Email"],
+      target: "Individual",
+      status: "Delivered",
+      sentToCount: 1,
+
       email: user.email,
+
       metadata: {
-        purpose,
+        otpPurpose: purpose,
       },
     });
 
@@ -549,9 +568,15 @@ exports.verifyOtpController = async (req, res) => {
     await user.save();
     await createNotification({
       userId: user._id,
+
       title: "Verification Successful",
-      message: `Your verification code has been confirmed successfully.`,
+      message: "Your verification code has been confirmed successfully.",
+      type: "email_verify",
       category: "security",
+      channels: ["Email", "In-App"],
+      target: "Individual",
+      status: "Delivered",
+      sentToCount: 1,
       email: user.email,
     });
 
@@ -656,9 +681,15 @@ exports.logout = async (req, res) => {
     if (user) {
       await createNotification({
         userId: user._id,
-        title: "Logged Out",
+
+        title: "system",
         message: "You logged out of your account.",
+        type: "logout",
         category: "system",
+        channels: ["In-App"],
+        target: "Individual",
+        status: "Delivered",
+        sentToCount: 1,
       });
     }
 
@@ -754,9 +785,15 @@ exports.forgotPassword = async (req, res) => {
 
     await createNotification({
       userId: user._id,
+
       title: "Password Reset Requested",
       message: "A password reset verification code was requested.",
+      type: "password_reset",
       category: "security",
+      channels: ["Email"],
+      target: "Individual",
+      status: "Delivered",
+      sentToCount: 1,
       email: user.email,
     });
 
@@ -904,9 +941,15 @@ exports.resetPassword = async (req, res) => {
 
     await createNotification({
       userId: user._id,
+
       title: "Password Reset Successful",
       message: "Your password has been reset successfully.",
-      category: "system",
+      type: "authentication",
+      category: "security",
+      channels: ["Email", "In-App"],
+      target: "Individual",
+      status: "Delivered",
+      sentToCount: 1,
       email: user.email,
     });
 

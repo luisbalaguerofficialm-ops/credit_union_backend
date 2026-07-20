@@ -142,7 +142,12 @@ exports.updateProfile = async (req, res) => {
       userId: user._id,
       title: "Profile Updated",
       message: "Your profile information was updated successfully.",
+      type: "profile_update",
       category: "system",
+      channels: ["Email", "In-App"],
+      target: "Individual",
+      status: "Delivered",
+      sentToCount: 1,
       email: user.email,
     });
 
@@ -616,7 +621,12 @@ exports.changePassword = async (req, res) => {
       title: "Password Changed",
       message:
         "Your account password was changed successfully. If this wasn't you, contact support immediately.",
+      type: "password_changed",
       category: "security",
+      channels: ["Email", "In-App"],
+      target: "Individual",
+      status: "Delivered",
+      sentToCount: 1,
       email: user.email,
     });
 
@@ -672,10 +682,15 @@ exports.changeTransactionPin = async (req, res) => {
       userId: user._id,
       title: "Transaction PIN Changed",
       message: "Your transaction PIN has been changed successfully.",
+      type: "pin_changed",
       category: "security",
+      channels: ["Email", "In-App"],
+      target: "Individual",
+      status: "Delivered",
+      sentToCount: 1,
       email: user.email,
       metadata: {
-        type: "pin_changed",
+        action: "pin_changed",
       },
     });
 
@@ -944,10 +959,15 @@ exports.resetTransactionPin = async (req, res) => {
       userId: user._id,
       title: "Transaction PIN Reset",
       message: "Your transaction PIN has been reset successfully.",
+      type: "reset_transaction_pin",
       category: "security",
+      channels: ["Email", "In-App"],
+      target: "Individual",
+      status: "Delivered",
+      sentToCount: 1,
       email: user.email,
       metadata: {
-        type: "pin_reset",
+        action: "pin_reset",
       },
     });
 
@@ -1083,7 +1103,12 @@ exports.updatePreferences = async (req, res) => {
       userId: user._id,
       title: "Notification Preferences Updated",
       message: "Your notification preferences have been updated.",
+      type: "notification_preferences",
       category: "system",
+      channels: ["In-App"],
+      target: "Individual",
+      status: "Delivered",
+      sentToCount: 1,
     });
 
     res.json({
@@ -1129,8 +1154,14 @@ exports.deleteAccount = async (req, res) => {
     await createNotification({
       userId: user._id,
       title: "Account Scheduled For Deletion",
-      message: "Your account has been deleted successfully.",
+      message:
+        "Your account has been scheduled for deletion. If this wasn't requested, contact support immediately.",
+      type: "account_deletion",
       category: "security",
+      channels: ["Email", "In-App"],
+      target: "Individual",
+      status: "Delivered",
+      sentToCount: 1,
       email: user.email,
     });
 

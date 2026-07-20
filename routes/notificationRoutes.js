@@ -9,7 +9,6 @@ const {
   deleteAllNotifications,
   sendTransferFeeNotification,
   sendNotification,
-  getNotificationHistory,
   adminGetAllNotifications,
   markNotificationAsRead,
   markAllNotificationsAsRead,
@@ -51,12 +50,6 @@ router.post(
   sendNotification,
 );
 
-router.get(
-  "/notifications/history",
-  protect,
-  authorize("admin", "manager", "superadmin"),
-  getNotificationHistory,
-);
 
 router.get(
   "/admin/notifications",
