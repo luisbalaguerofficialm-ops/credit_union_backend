@@ -436,31 +436,82 @@ exports.sendNotification = async (req, res) => {
 
 exports.getNotificationHistory = async (req, res) => {
   try {
-    const notifications = await Notification.find()
-      .sort({ createdAt: -1 })
-      .limit(7)
-      .populate("createdBy", "name email");
+    const {
+      page = 1,
+      limit = 10,
+      channel,
+      status,
+      audience,
+      search,
+    } = req.query;
 
-    // Format response for frontend table
+    const query = {};
+
+    // Search by title or message
+    if (search) {
+      query.$or = [
+        { title: { $regex: search, $options: "i" } },
+        { message: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    // Filter by channel
+    if (channel && channel !== "All") {
+      query.channels = channel;
+    }
+
+    // Filter by status
+    if (status && status !== "All") {
+      query.status = status;
+    }
+
+    // Filter by audience
+    if (audience && audience !== "All") {
+      query.target = audience;
+    }
+
+    const currentPage = Number(page);
+    const perPage = Number(limit);
+    const skip = (currentPage - 1) * perPage;
+
+    const total = await Notification.countDocuments(query);
+
+    const notifications = await Notification.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(perPage)
+      .populate("createdBy", "name email role");
+
     const formattedNotifications = notifications.map((n) => ({
       id: n._id,
       title: n.title,
-      channel: n.channels.join(", "),
+      message: n.message,
+      channels: n.channels,
       audience: n.target,
       sentCount: n.sentToCount || 0,
       createdAt: n.createdAt,
-      createdBy: n.createdBy?.name,
-      createdByRole: n.createdBy?.role,
-      createdByEmail: n.createdBy?.email,
+      createdBy: n.createdBy?.name || "System",
+      createdByRole: n.createdBy?.role || "-",
+      createdByEmail: n.createdBy?.email || "-",
       status: n.status,
     }));
 
     return res.status(200).json({
       success: true,
       notifications: formattedNotifications,
+
+      pagination: {
+        page: currentPage,
+        limit: perPage,
+        total,
+        totalPages: Math.ceil(total / perPage),
+        hasNextPage: currentPage < Math.ceil(total / perPage),
+        hasPrevPage: currentPage > 1,
+      },
     });
   } catch (err) {
     console.error("Fetch notification history error:", err);
+
     res.status(500).json({
       success: false,
       message: "Failed to fetch notification history",

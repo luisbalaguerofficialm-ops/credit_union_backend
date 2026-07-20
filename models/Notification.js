@@ -35,6 +35,7 @@ const NotificationSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
+      index: true,
     },
 
     message: {
