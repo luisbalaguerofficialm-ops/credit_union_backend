@@ -374,6 +374,7 @@ exports.loginUser = async (req, res) => {
     // SAVE REFRESH TOKEN
     // =====================
     user.refreshToken = refreshToken;
+    user.lastLogin = Date.now();
     await user.save();
 
     await createNotification({

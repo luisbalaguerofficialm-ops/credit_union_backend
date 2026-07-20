@@ -173,6 +173,7 @@ const UserSchema = new mongoose.Schema(
       type: Date,
       index: true,
     },
+   
 
     isEmailVerified: {
       type: Boolean,
