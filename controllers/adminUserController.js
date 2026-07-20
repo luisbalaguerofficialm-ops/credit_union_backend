@@ -9,7 +9,7 @@ exports.getAllUsers = async (req, res) => {
   try {
     const {
       page = 1,
-      limit = 10,
+      limit = 5,
       search = "",
       status = "All",
       accountType = "All",
@@ -328,6 +328,76 @@ exports.updateUser = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to update user.",
+    });
+  }
+};
+
+// Admin Delete Single User
+exports.adminDeleteUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Validate ObjectId
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid user ID.",
+      });
+    }
+
+    const user = await User.findById(id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found.",
+      });
+    }
+
+    // Prevent admin from deleting themselves
+    if (req.user && req.user._id.toString() === user._id.toString()) {
+      return res.status(400).json({
+        success: false,
+        message: "You cannot delete your own account.",
+      });
+    }
+
+    /*
+    =====================================
+    Delete Related Records
+    =====================================
+    */
+
+    await Promise.all([
+      Wallet.deleteMany({ user: user._id }),
+      Notification.deleteMany({ userId: user._id }),
+      Transaction.deleteMany({ user: user._id }),
+
+      // Uncomment if these collections reference users
+      // Beneficiary.deleteMany({ user: user._id }),
+      // Device.deleteMany({ user: user._id }),
+      // LoginHistory.deleteMany({ user: user._id }),
+      // OTP.deleteMany({ user: user._id }),
+    ]);
+
+    /*
+    =====================================
+    Delete User
+    =====================================
+    */
+
+    await user.deleteOne();
+
+    return res.status(200).json({
+      success: true,
+      message: "User deleted successfully.",
+    });
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to delete user.",
     });
   }
 };
@@ -800,4 +870,3 @@ exports.changeRole = async (req, res) => {
     });
   }
 };
-

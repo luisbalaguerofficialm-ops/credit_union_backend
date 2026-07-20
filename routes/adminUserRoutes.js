@@ -6,6 +6,7 @@ const {
   getAllUsers,
   getUserById,
   updateUser,
+  adminDeleteUser,
   activateUser,
   suspendUser,
   flagUser,
@@ -44,6 +45,12 @@ router.patch(
   protect,
   authorize("superadmin", "admin"),
   updateUser,
+);
+router.delete(
+  "/admin/users/:id",
+  protect,
+  authorize("superadmin", "admin", "manager"),
+  adminDeleteUser,
 );
 
 // PATCH /api/admin/users/:id/activate
