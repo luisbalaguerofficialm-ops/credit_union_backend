@@ -33,7 +33,7 @@ router.get(
 );
 
 router.get(
-  "/admin/member/:id",
+  "/users/member/:id",
   protect,
   authorize("admin", "manager", "superadmin"),
   getMemberById,

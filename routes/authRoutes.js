@@ -33,4 +33,5 @@ router.post(
   authorize("superadmin"),
   authController.createAdmin,
 );
+
 module.exports = router;
