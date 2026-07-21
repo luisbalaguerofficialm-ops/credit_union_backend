@@ -22,6 +22,12 @@ router.post("/password/verify-otp", authController.verifyForgotPasswordOtp);
 router.post("/password/reset", authController.resetPassword);
 router.post("/refresh-token", authController.refreshToken);
 router.post(
+  "/create-customer",
+  protect,
+  authorize("superadmin", "admin", "manager"),
+  authController.createCustomerByAdmin,
+);
+router.post(
   "/create-admin",
   protect,
   authorize("superadmin"),

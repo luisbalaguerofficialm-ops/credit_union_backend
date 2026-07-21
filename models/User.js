@@ -173,7 +173,6 @@ const UserSchema = new mongoose.Schema(
       type: Date,
       index: true,
     },
-   
 
     isEmailVerified: {
       type: Boolean,
@@ -225,6 +224,22 @@ const UserSchema = new mongoose.Schema(
     createdAt: {
       type: Date,
       index: true,
+    },
+
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+
+    registrationMethod: {
+      type: String,
+      enum: ["user", "manager", "admin", "superadmin"],
+      default: "user",
+      index: true,
+    },
+
+    createdByRole: {
+      type: String,
     },
 
     // =============================

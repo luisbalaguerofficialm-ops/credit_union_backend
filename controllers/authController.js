@@ -594,14 +594,18 @@ exports.verifyOtpController = async (req, res) => {
     res.status(500).json({ message: "OTP verification failed" });
   }
 };
-
+// CREATE OTHER ADMIN ONLY SUPER ADMIN
 exports.createAdmin = async (req, res) => {
   try {
     const { name, email, password, role } = req.body;
 
     const exists = await Admin.findOne({ email });
+
     if (exists) {
-      return res.status(400).json({ message: "Admin already exists" });
+      return res.status(400).json({
+        success: false,
+        message: "Admin already exists",
+      });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -611,21 +615,218 @@ exports.createAdmin = async (req, res) => {
       email,
       password: hashedPassword,
       role,
+
+      // NEW
+      createdBy: req.user._id,
     });
 
     res.status(201).json({
       success: true,
+      message: "Admin created successfully",
       admin: {
         id: admin._id,
         name: admin.name,
         email: admin.email,
         role: admin.role,
+        createdBy: req.user.email,
       },
     });
   } catch (error) {
     res.status(500).json({
+      success: false,
       message: "Failed to create admin",
       error: error.message,
+    });
+  }
+};
+
+// ADMIN CREATE USERS
+exports.createCustomerByAdmin = async (req, res) => {
+  try {
+    const {
+      firstName,
+      lastName,
+      username,
+      email,
+      phone,
+      socialSecurityNumber,
+      password,
+      confirmPassword,
+      accountType,
+      address,
+      state,
+      city,
+      zipcode,
+      choosedAccount,
+    } = req.body;
+
+    if (!firstName || !lastName || !username || !email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "Please fill all required fields",
+      });
+    }
+
+    // =====================================
+    // PASSWORD VALIDATION
+    // =====================================
+
+    if (password !== confirmPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "Passwords do not match",
+      });
+    }
+
+    if (password.length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: "Password must be at least 8 characters",
+      });
+    }
+
+    // =====================================
+    // DUPLICATE CHECKS
+    // =====================================
+
+    const emailExists = await User.findOne({
+      email: email.toLowerCase(),
+    });
+
+    if (emailExists) {
+      return res.status(400).json({
+        success: false,
+        message: "Email already registered",
+      });
+    }
+
+    const usernameExists = await User.findOne({
+      username: username.toLowerCase(),
+    });
+
+    if (usernameExists) {
+      return res.status(400).json({
+        success: false,
+        message: "Username already taken",
+      });
+    }
+
+    const ssnExists = await User.findOne({
+      socialSecurityNumber,
+    });
+
+    if (ssnExists) {
+      return res.status(400).json({
+        success: false,
+        message: "SSN already exists",
+      });
+    }
+
+    // =====================================
+    // HASH PASSWORD
+    // =====================================
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // =====================================
+    // GENERATE TRANSACTION PIN
+    // =====================================
+
+    const transactionPin = generatePin();
+
+    const pinHash = await bcrypt.hash(transactionPin, 10);
+
+    // =====================================
+    // GENERATE ACCOUNT NUMBER
+    // =====================================
+
+    const accountNumber = await generateAccountNumber();
+
+    const user = await User.create({
+      firstName,
+      lastName,
+      username: username.toLowerCase(),
+      email: email.toLowerCase(),
+      phone,
+      socialSecurityNumber,
+      password: hashedPassword,
+      accountType,
+      accountNumber,
+      pinHash,
+      address,
+      state,
+      city,
+      zipcode,
+      choosedAccount,
+      role: "user",
+      createdBy: req.user._id,
+    });
+
+    await Wallet.create({
+      user: user._id,
+      balance: 0,
+      currency: "USD",
+    });
+
+    await sendEmail({
+      to: user.email,
+      subject: "Welcome to America Bank",
+      html: `
+        <div style="max-width:600px;margin:auto;font-family:Arial">
+
+          <div style="text-align:center">
+            <img
+              src="https://res.cloudinary.com/dikpj9nfr/image/upload/v1783792163/america_bank2_zlryq6.png"
+              width="160"
+            />
+          </div>
+
+          <h2>Welcome ${firstName} 🎉</h2>
+
+          <p>Your account has been successfully created.</p>
+
+          <p>
+            <strong>Account Number:</strong>
+            ${accountNumber}
+          </p>
+
+          <p>
+            <strong>Temporary Transaction PIN:</strong>
+            ${transactionPin}
+          </p>
+
+          <p>
+            Please keep this PIN secure.
+          </p>
+
+          <hr />
+
+          <small>
+            © ${new Date().getFullYear()}
+          America Bank
+          </small>
+
+        </div>
+      `,
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: "Customer account created successfully.",
+      user: {
+        id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        accountNumber: user.accountNumber,
+      },
+    });
+  } catch (err) {
+    console.log(err);
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to create customer",
     });
   }
 };

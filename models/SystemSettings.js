@@ -15,7 +15,7 @@ const SystemSettingsSchema = new mongoose.Schema(
 
     regionalCode: {
       type: String,
-      enum: ["RG-01-EAST", "RG-02-WEST", "RG-03-SOUTH", "RG-04-NORTH"],
+      enum: ["RG-04-NORTH", "RG-02-WEST", "RG-03-SOUTH", "RG-04-NORTH"],
       default: "RG-04-NORTH",
     },
 
