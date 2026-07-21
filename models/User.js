@@ -233,11 +233,11 @@ const UserSchema = new mongoose.Schema(
 
     registrationMethod: {
       type: String,
-      enum: ["user", "manager", "admin", "superadmin"],
-      default: "user",
-      index: true,
+      enum: ["self", "admin", "superadmin"],
+      default: "self",
     },
 
+    
     createdByRole: {
       type: String,
     },

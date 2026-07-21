@@ -599,25 +599,38 @@ exports.createAdmin = async (req, res) => {
   try {
     const { name, email, password, role } = req.body;
 
-    const exists = await Admin.findOne({ email });
+    // Only allow creating admin/manager accounts
+    if (!["admin", "manager"].includes(role)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid role",
+      });
+    }
+
+    const exists = await User.findOne({
+      email: email.toLowerCase(),
+    });
 
     if (exists) {
       return res.status(400).json({
         success: false,
-        message: "Admin already exists",
+        message: "User already exists",
       });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const admin = await Admin.create({
+    const admin = await User.create({
       name,
-      email,
+      email: email.toLowerCase(),
       password: hashedPassword,
       role,
 
-      // NEW
+      registrationMethod: req.user.role, // superadmin/admin/etc
+
       createdBy: req.user._id,
+      createdByRole: req.user.role,
+      createdAt: new Date(),
     });
 
     res.status(201).json({
@@ -632,6 +645,8 @@ exports.createAdmin = async (req, res) => {
       },
     });
   } catch (error) {
+    console.error(error);
+
     res.status(500).json({
       success: false,
       message: "Failed to create admin",
@@ -639,7 +654,6 @@ exports.createAdmin = async (req, res) => {
     });
   }
 };
-
 // ADMIN CREATE USERS
 exports.createCustomerByAdmin = async (req, res) => {
   try {
