@@ -597,7 +597,7 @@ exports.verifyOtpController = async (req, res) => {
 // CREATE OTHER ADMIN ONLY SUPER ADMIN
 exports.createAdmin = async (req, res) => {
   try {
-    const { name, email, password, role } = req.body;
+    const { firstName, lastName, email, password, role } = req.body;
 
     // Only allow creating admin/manager accounts
     if (!["admin", "manager"].includes(role)) {
@@ -621,13 +621,12 @@ exports.createAdmin = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const admin = await User.create({
-      name,
+      firstName,
+      lastName,
       email: email.toLowerCase(),
       password: hashedPassword,
       role,
-
       registrationMethod: req.user.role, // superadmin/admin/etc
-
       createdBy: req.user._id,
       createdByRole: req.user.role,
       createdAt: new Date(),
@@ -638,7 +637,8 @@ exports.createAdmin = async (req, res) => {
       message: "Admin created successfully",
       admin: {
         id: admin._id,
-        name: admin.name,
+        firstName: admin.firstName,
+        lastName: admin.lastName,
         email: admin.email,
         role: admin.role,
         createdBy: req.user.email,

@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const User = require("../models/User");
 const Wallet = require("../models/Wallet");
 const Transaction = require("../models/Transaction");
@@ -5,6 +6,7 @@ const crypto = require("crypto");
 const { createNotification } = require("./notificationController");
 const emitDashboardUpdate = require("../utils/emitDashboardUpdate");
 const { sendEmail } = require("../utils/notify");
+const Notification = require("../models/Notification");
 
 exports.getAllUsers = async (req, res) => {
   try {
@@ -21,7 +23,9 @@ exports.getAllUsers = async (req, res) => {
     // FILTER BUILDER
     // =======================
 
-    const filter = {};
+    const filter = {
+      role: "user",
+    };
 
     if (search) {
       const regex = new RegExp(search, "i");
@@ -111,18 +115,22 @@ exports.getAllUsers = async (req, res) => {
         .limit(perPage),
 
       User.countDocuments({
+        role: "user",
         status: "Active",
       }),
 
       User.countDocuments({
+        role: "user",
         status: "Pending",
       }),
 
       User.countDocuments({
+        role: "user",
         status: "Suspended",
       }),
 
       User.countDocuments({
+        role: "user",
         status: "Flagged",
       }),
     ]);
@@ -142,12 +150,14 @@ exports.getAllUsers = async (req, res) => {
 
     const [newUsersThisMonth, newUsersLastMonth] = await Promise.all([
       User.countDocuments({
+        role: "user",
         createdAt: {
           $gte: startMonth,
         },
       }),
 
       User.countDocuments({
+        role: "user",
         createdAt: {
           $gte: previousMonth,
           $lt: startMonth,

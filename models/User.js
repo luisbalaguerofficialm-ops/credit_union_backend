@@ -29,10 +29,13 @@ const UserSchema = new mongoose.Schema(
     username: {
       type: String,
       unique: true,
-      required: true,
       lowercase: true,
       trim: true,
+      sparse: true,
       index: true,
+      required: function () {
+        return this.role === "user";
+      },
     },
 
     email: {
@@ -45,22 +48,27 @@ const UserSchema = new mongoose.Schema(
     },
 
     socialSecurityNumber: {
-      type: Number,
-      required: true,
-      trim: true,
+      type: String,
       unique: true,
+      sparse: true,
+      trim: true,
+      required: function () {
+        return this.role === "user";
+      },
     },
 
     choosedAccount: {
       type: String,
       enum: ["Essential Checking", "High-Yield Savings"],
-      required: true,
       trim: true,
+      required: function () {
+        return this.role === "user";
+      },
     },
 
     phone: {
-      type: Number,
-      default: false,
+      type: String,
+      trim: true,
     },
 
     password: {
@@ -75,8 +83,10 @@ const UserSchema = new mongoose.Schema(
     accountType: {
       type: String,
       enum: ["Savings", "Current", "Fixed Deposit"],
-      required: true,
       index: true,
+      required: function () {
+        return this.role === "user";
+      },
     },
 
     refreshToken: {
@@ -93,13 +103,16 @@ const UserSchema = new mongoose.Schema(
     accountNumber: {
       type: Number,
       unique: true,
+      sparse: true,
       index: true,
     },
 
     pinHash: {
       type: String,
-      required: true,
       select: false,
+      required: function () {
+        return this.role === "user";
+      },
     },
 
     // =============================
@@ -121,16 +134,21 @@ const UserSchema = new mongoose.Schema(
 
     state: {
       type: String,
-      required: true,
+      required: function () {
+        return this.role === "user";
+      },
     },
 
     city: {
       type: String,
       trim: true,
-      required: true,
+      required: function () {
+        return this.role === "user";
+      },
     },
+
     zipcode: {
-      type: Number,
+      type: String,
     },
 
     address: {
@@ -237,7 +255,6 @@ const UserSchema = new mongoose.Schema(
       default: "self",
     },
 
-    
     createdByRole: {
       type: String,
     },
