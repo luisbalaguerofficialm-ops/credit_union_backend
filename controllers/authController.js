@@ -828,6 +828,7 @@ exports.createCustomerByAdmin = async (req, res) => {
       success: true,
       message: "Customer account created successfully.",
       user: {
+        _id: user._id,
         id: user._id,
         firstName: user.firstName,
         lastName: user.lastName,
