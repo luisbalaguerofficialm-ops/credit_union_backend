@@ -4,6 +4,7 @@ const Transaction = require("../models/Transaction");
 const crypto = require("crypto");
 const { createNotification } = require("./notificationController");
 const emitDashboardUpdate = require("../utils/emitDashboardUpdate");
+const { sendEmail } = require("../utils/notify");
 
 exports.getAllUsers = async (req, res) => {
   try {
@@ -701,6 +702,89 @@ exports.creditWallet = async (req, res) => {
       },
     });
 
+    await sendEmail({
+      to: user.email,
+      subject: "Account Credit Notification",
+      html: `
+<div style="max-width:600px;margin:auto;font-family:Arial,sans-serif;background:#fff;border:1px solid #eee;padding:30px">
+
+  <div style="text-align:center;margin-bottom:20px;">
+    <img
+      src="https://res.cloudinary.com/dvthnscx7/image/upload/v1768231460/images_p4tgmy.png"
+      width="150"
+      alt="America Bank"
+    />
+  </div>
+
+  <h2 style="color:#004B6E;">
+    Hello ${user.firstName} ${user.lastName},
+  </h2>
+
+  <p>
+    We are pleased to inform you that your account has been
+    <strong style="color:#0a8f4f;">credited successfully.</strong>
+  </p>
+
+  <table style="width:100%;border-collapse:collapse;border:1px solid #ddd;margin:20px 0;">
+
+    <tr style="background:#f5f5f5;">
+      <td style="padding:10px;"><strong>Account Number</strong></td>
+      <td style="padding:10px;">${user.accountNumber}</td>
+    </tr>
+
+    <tr>
+      <td style="padding:10px;"><strong>Transaction ID</strong></td>
+      <td style="padding:10px;">${transaction.transactionId}</td>
+    </tr>
+
+    <tr style="background:#f5f5f5;">
+      <td style="padding:10px;"><strong>Amount Credited</strong></td>
+      <td style="padding:10px;color:#0a8f4f;font-size:18px;font-weight:bold;">
+        $${Number(amount).toLocaleString()}
+      </td>
+    </tr>
+
+    <tr>
+      <td style="padding:10px;"><strong>Description</strong></td>
+      <td style="padding:10px;">
+        ${note || "Admin Wallet Credit"}
+      </td>
+    </tr>
+
+    <tr style="background:#f5f5f5;">
+      <td style="padding:10px;"><strong>Date</strong></td>
+      <td style="padding:10px;">
+        ${new Date().toLocaleString()}
+      </td>
+    </tr>
+
+    <tr>
+      <td style="padding:10px;"><strong>Status</strong></td>
+      <td style="padding:10px;color:green;font-weight:bold;">
+        Successful
+      </td>
+    </tr>
+
+  </table>
+
+  <p>
+    This credit has been applied to your account successfully.
+  </p>
+
+  <p style="color:#d32f2f;">
+    If you do not recognize this transaction, please contact America Bank immediately.
+  </p>
+
+  <hr>
+
+  <small>
+    © ${new Date().getFullYear()} America Bank. All rights reserved.
+  </small>
+
+</div>
+`,
+    });
+
     const io = req.app.get("io");
 
     if (io) {
@@ -799,6 +883,89 @@ exports.debitWallet = async (req, res) => {
       },
     });
 
+    await sendEmail({
+      to: user.email,
+      subject: "Account Debit Notification",
+      html: `
+<div style="max-width:600px;margin:auto;font-family:Arial,sans-serif;background:#fff;border:1px solid #eee;padding:30px">
+
+  <div style="text-align:center;margin-bottom:20px;">
+    <img
+      src="https://res.cloudinary.com/dvthnscx7/image/upload/v1768231460/images_p4tgmy.png"
+      width="150"
+      alt="America Bank"
+    />
+  </div>
+
+  <h2 style="color:#004B6E;">
+    Hello ${user.firstName} ${user.lastName},
+  </h2>
+
+  <p>
+    This is to notify you that your account has been
+    <strong style="color:#d32f2f;">debited successfully.</strong>
+  </p>
+
+  <table style="width:100%;border-collapse:collapse;border:1px solid #ddd;margin:20px 0;">
+
+    <tr style="background:#f5f5f5;">
+      <td style="padding:10px;"><strong>Account Number</strong></td>
+      <td style="padding:10px;">${user.accountNumber}</td>
+    </tr>
+
+    <tr>
+      <td style="padding:10px;"><strong>Transaction ID</strong></td>
+      <td style="padding:10px;">${transaction.transactionId}</td>
+    </tr>
+
+    <tr style="background:#f5f5f5;">
+      <td style="padding:10px;"><strong>Amount Debited</strong></td>
+      <td style="padding:10px;color:#d32f2f;font-size:18px;font-weight:bold;">
+        $${Number(amount).toLocaleString()}
+      </td>
+    </tr>
+
+    <tr>
+      <td style="padding:10px;"><strong>Description</strong></td>
+      <td style="padding:10px;">
+        ${note || "Admin Wallet Debit"}
+      </td>
+    </tr>
+
+    <tr style="background:#f5f5f5;">
+      <td style="padding:10px;"><strong>Date</strong></td>
+      <td style="padding:10px;">
+        ${new Date().toLocaleString()}
+      </td>
+    </tr>
+
+    <tr>
+      <td style="padding:10px;"><strong>Status</strong></td>
+      <td style="padding:10px;color:green;font-weight:bold;">
+        Successful
+      </td>
+    </tr>
+
+  </table>
+
+  <p>
+    Please review this transaction carefully.
+  </p>
+
+  <p style="color:#d32f2f;">
+    If you did not authorize this debit, contact America Bank immediately.
+  </p>
+
+  <hr>
+
+  <small>
+    © ${new Date().getFullYear()} America Bank. All rights reserved.
+  </small>
+
+</div>
+`,
+    });
+
     const io = req.app.get("io");
 
     if (io) {
@@ -867,6 +1034,34 @@ exports.changeRole = async (req, res) => {
       success: false,
 
       message: "Failed to change role",
+    });
+  }
+};
+
+// ============================
+exports.getMemberById = async (req, res) => {
+  try {
+    const member = await User.findById(req.params.id)
+      .select(
+        "firstName lastName username accountNumber accountType choosedAccount email phone createdAt",
+      )
+      .populate("createdBy", "firstName lastName");
+
+    if (!member) {
+      return res.status(404).json({
+        success: false,
+        message: "Member not found",
+      });
+    }
+
+    res.json({
+      success: true,
+      member,
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: err.message,
     });
   }
 };

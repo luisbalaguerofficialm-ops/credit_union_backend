@@ -15,6 +15,7 @@ const {
   creditWallet,
   debitWallet,
   changeRole,
+  getMemberById,
 } = require("../controllers/adminUserController");
 
 const { protect, authorize } = require("../middlewares/authMiddleware");
@@ -29,6 +30,13 @@ router.get(
   protect,
   authorize("superadmin", "admin", "manager"),
   getAllUsers,
+);
+
+router.get(
+  "/admin/member/:id",
+  protect,
+  authorize("admin", "manager", "superadmin"),
+  getMemberById,
 );
 
 // GET /api/admin/users/:id
