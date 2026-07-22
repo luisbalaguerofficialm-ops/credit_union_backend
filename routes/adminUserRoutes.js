@@ -14,7 +14,6 @@ const {
   updateUserStatus,
   creditWallet,
   debitWallet,
-  changeRole,
   getMemberById,
 } = require("../controllers/adminUserController");
 
@@ -121,10 +120,5 @@ router.delete(
   adminDeleteUser,
 );
 
-// ======================================
-// ROLE MANAGEMENT
-// ======================================
-
-router.patch("/users/:id/role", protect, authorize("superadmin"), changeRole);
 
 module.exports = router;

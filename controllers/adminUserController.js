@@ -1000,53 +1000,6 @@ exports.debitWallet = async (req, res) => {
   }
 };
 
-// ======================================
-// CHANGE ROLE
-// PATCH /api/admin/users/:id/role
-// ======================================
-exports.changeRole = async (req, res) => {
-  try {
-    const { role } = req.body;
-
-    const allowedRoles = ["user", "admin", "manager", "superadmin"];
-
-    if (!allowedRoles.includes(role)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid role",
-      });
-    }
-
-    const user = await User.findById(req.params.id);
-
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found",
-      });
-    }
-
-    user.role = role;
-
-    await user.save();
-
-    res.json({
-      success: true,
-
-      message: "Role updated successfully",
-
-      user,
-    });
-  } catch (error) {
-    console.error(error);
-
-    res.status(500).json({
-      success: false,
-
-      message: "Failed to change role",
-    });
-  }
-};
 
 // ============================
 exports.getMemberById = async (req, res) => {

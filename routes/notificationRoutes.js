@@ -18,69 +18,68 @@ const {
 
 const { protect, authorize } = require("../middlewares/authMiddleware");
 
-// ===============================
-// GET ALL NOTIFICATIONS
-// ===============================
+// ======================================================
+// USER NOTIFICATIONS
+// ======================================================
+
 router.get("/", protect, getNotifications);
 
-// ===============================
-// MARK ALL AS READ (must be before /:id routes)
-// ===============================
-router.put("/read-all", protect, markAllAsRead);
+router.patch("/read-all", protect, markAllAsRead);
 
-// ===============================
-// MARK SINGLE AS READ
-// ===============================
-router.put("/:id/read", protect, markAsRead);
+router.patch("/:id/read", protect, markAsRead);
 
-// ===============================
-// DELETE ALL (must be before /:id)
-// ===============================
 router.delete("/", protect, deleteAllNotifications);
 
-// ===============================
-// DELETE SINGLE
-// ===============================
 router.delete("/:id", protect, deleteNotification);
 
-router.post(
-  "/send",
-  protect,
-  authorize("admin", "manager", "superadmin"),
-  sendNotification,
-);
-
+// ======================================================
+// ADMIN NOTIFICATIONS
+// ======================================================
 
 router.get(
-  "/admin/notifications",
+  "/admin",
   protect,
   authorize("admin", "manager", "superadmin"),
   adminGetAllNotifications,
 );
+
 router.patch(
-  "/notifications/read-all",
+  "/admin/read-all",
   protect,
   authorize("admin", "manager", "superadmin"),
   markAllNotificationsAsRead,
 );
 
 router.patch(
-  "/notifications/read/:id",
+  "/admin/:id/read",
   protect,
   authorize("admin", "manager", "superadmin"),
   markNotificationAsRead,
 );
+
 router.delete(
-  "/notifications",
+  "/admin",
   protect,
   authorize("admin", "manager", "superadmin"),
   adminDeleteAllNotifications,
 );
+
 router.delete(
-  "/notifications/:id",
+  "/admin/:id",
   protect,
   authorize("admin", "manager", "superadmin"),
   adminDeleteNotification,
+);
+
+// ======================================================
+// SEND NOTIFICATIONS
+// ======================================================
+
+router.post(
+  "/send",
+  protect,
+  authorize("admin", "manager", "superadmin"),
+  sendNotification,
 );
 
 // ===============================

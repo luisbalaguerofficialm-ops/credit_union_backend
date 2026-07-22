@@ -813,20 +813,20 @@ exports.adminDeleteNotification = async (req, res) => {
 };
 
 // ADMIN Delete All Notifications
-
+// ADMIN Delete All Notifications
 exports.adminDeleteAllNotifications = async (req, res) => {
   try {
     const result = await Notification.deleteMany({});
 
     return res.status(200).json({
       success: true,
-      message: `${result.deletedCount} notifications deleted successfully`,
       deletedCount: result.deletedCount,
+      message: `${result.deletedCount} notifications deleted successfully`,
     });
   } catch (error) {
-    console.error(error);
+    console.error("Delete All Notifications:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: error.message,
     });
