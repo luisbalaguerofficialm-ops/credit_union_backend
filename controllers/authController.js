@@ -626,7 +626,7 @@ exports.createAdmin = async (req, res) => {
       email: email.toLowerCase(),
       password: hashedPassword,
       role,
-      registrationMethod: req.user.role, // superadmin/admin/etc
+      registrationMethod: req.user.role, 
       createdBy: req.user._id,
       createdByRole: req.user.role,
       createdAt: new Date(),

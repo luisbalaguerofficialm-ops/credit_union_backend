@@ -58,7 +58,7 @@ router.patch(
 );
 
 router.delete(
-  "/admin",
+  "/admin/delete-all",
   protect,
   authorize("admin", "manager", "superadmin"),
   adminDeleteAllNotifications,

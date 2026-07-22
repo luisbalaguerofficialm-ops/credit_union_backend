@@ -812,7 +812,7 @@ exports.adminDeleteNotification = async (req, res) => {
   }
 };
 
-// ADMIN Delete All Notifications
+
 // ADMIN Delete All Notifications
 exports.adminDeleteAllNotifications = async (req, res) => {
   try {
