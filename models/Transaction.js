@@ -19,10 +19,6 @@ const TransactionSchema = new mongoose.Schema(
     transferType: {
       type: String,
       enum: ["Domestic", "International", "Wire"],
-      required: function () {
-        return this.type === "Transfer";
-      },
-      index: true,
     },
 
     // Recipient Details
