@@ -16,7 +16,7 @@ const allowedOrigins = process.env.CLIENT_URL
   ? process.env.CLIENT_URL.split(",").map((o) => o.trim())
   : [
       "https://www.credixa.co",
-      "https://admin.credixa.co",
+      "https://adminadmin.credixa.co",
       "http://localhost:5173",
     ];
 
